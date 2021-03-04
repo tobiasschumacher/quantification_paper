@@ -1,0 +1,41 @@
+﻿Dataset;Abbr.;Source;D;Non-Categorical;N;L;Folder;url
+Internet Advertisements;ads;UCI;1560;Yes;2359;2;internet_ads;https://archive.ics.uci.edu/ml/machine-learning-databases/internet_ads/ad.data
+Adult;adult;UCI;89;Yes;45222;2;adult;https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data
+Student Alcohol Consumption;alco;Kaggle;57;Yes;1044;2;student_alcohol;students_math.csv
+Avila;avila;UCI;10;Yes;20867;2;avila;https://archive.ics.uci.edu/ml/machine-learning-databases/00459/avila.zip
+Breast Cancer Wisconsin (Diagnostic);bc-cat;UCI;31;Yes;569;2;breast_cancer_cont;https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data
+Breast Cancer Wisconsin (Original);bc-cont;UCI;10;Yes;683;2;breast_cancer_int;https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data
+Bike Sharing Dataset;bike;UCI;59;Yes;17379;4;bike;https://archive.ics.uci.edu/ml/machine-learning-databases/00275/Bike-Sharing-Dataset.zip
+BlogFeedback;blog;UCI;280;Yes;52397;4;blog_feedback;https://archive.ics.uci.edu/ml/machine-learning-databases/00304/BlogFeedback.zip
+MiniBooNE Particle Identification;boone;UCI;50;Yes;129569;2;mini_boone;https://archive.ics.uci.edu/ml/machine-learning-databases/00199/MiniBooNE_PID.txt
+Credit Approval;cappl;UCI;44;Yes;653;2;credit_appl;https://archive.ics.uci.edu/ml/machine-learning-databases/credit-screening/crx.data
+Car Evaluation;cars;UCI;22;No;1728;2;cars_binary;https://archive.ics.uci.edu/ml/machine-learning-databases/car/car.data
+Default of Credit Card Clients;ccard;UCI;34;Yes;30000;2;credit_cards;https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default%20of%20credit%20card%20clients.xls
+Concrete Compressive Strength;conc;UCI;8;Yes;1030;3;concrete;https://archive.ics.uci.edu/ml/machine-learning-databases/concrete/compressive/Concrete_Data.xls
+Superconductivity Data;cond;UCI;89;Yes;21263;4;superconductor;https://archive.ics.uci.edu/ml/machine-learning-databases/00464/superconduct.zip
+Contraceptive Method Choice;contra;UCI;13;Yes;1473;3;contraceptive;https://archive.ics.uci.edu/ml/machine-learning-databases/cmc/cmc.data
+SkillCraft1 Master Table;craft;UCI;18;Yes;3338;3;skillcraft;https://archive.ics.uci.edu/ml/machine-learning-databases/00272/SkillCraft1_Dataset.csv
+Diamonds;diam;Kaggle;22;Yes;53940;3;diamonds;diamonds.csv
+Dota2 Games Results;dota;UCI;116;No;102944;2;dota2;https://archive.ics.uci.edu/ml/machine-learning-databases/00367/dota2Dataset.zip
+Drug Consumption;drugs;UCI;136;Yes;1885;3;drugs;https://archive.ics.uci.edu/ml/machine-learning-databases/00373/drug_consumption.data
+Appliances Energy Prediction;ener;UCI;25;Yes;19735;3;energy;https://archive.ics.uci.edu/ml/machine-learning-databases/00374/energydata_complete.csv
+FIFA 19 Complete Player Dataset;fifa;Kaggle;117;Yes;14751;4;fifa19;data.csv
+Solar Flare;flare;UCI;28;No;1066;2;flare;https://archive.ics.uci.edu/ml/machine-learning-databases/solar-flare/flare.data2
+Electrical Grid Stability Simulated Data;grid;UCI;11;Yes;10000;2;grid_stability;https://archive.ics.uci.edu/ml/machine-learning-databases/00471/Data_for_UCI_named.csv
+MAGIC Gamma Telescope;magic;UCI;10;Yes;19020;2;magic;https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data
+Mushroom;mush;UCI;111;No;8124;2;mushroom;https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data
+Geographical Original of Music;music;UCI;116;Yes;1059;2;music;https://archive.ics.uci.edu/ml/machine-learning-databases/00315/Geographical%20Original%20of%20Music.zip
+Musk (Version 2);musk;UCI;166;Yes;6598;2;musk;clean2.data
+News Popularity in Multiple Social Media Platforms;news;UCI;60;Yes;39644;4;news_popularity;https://archive.ics.uci.edu/ml/machine-learning-databases/00332/OnlineNewsPopularity.zip
+Nursery;nurse;UCI;27;No;12960;3;nursery;https://archive.ics.uci.edu/ml/machine-learning-databases/nursery/nursery.data
+Occupancy Detection;occup;UCI;5;Yes;20560;2;occupancy;https://archive.ics.uci.edu/ml/machine-learning-databases/00357/occupancy_data.zip
+Phishing Websites;phish;UCI;31;No;11055;2;phishing;https://archive.ics.uci.edu/ml/machine-learning-databases/00327/Training%20Dataset.arff
+Spambase;spam;UCI;58;Yes;4601;2;spambase;https://archive.ics.uci.edu/ml/machine-learning-databases/spambase/spambase.data
+Students Performance in Exams;study;Kaggle;19;Yes;1000;2;student_performance;StudentsPerformance.csv
+Telco Customer Churn;telco;Kaggle;45;Yes;7032;2;telco_churn;churn.csv
+First-order Theorem Proving;thrm;UCI;51;Yes;6117;3;theorem;all-data-raw.csv
+Turkiye Student Evaluation;turk;UCI;31;No;5820;3;turk_student_eval;https://archive.ics.uci.edu/ml/machine-learning-databases/00262/turkiye-student-evaluation_generic.csv
+Video Game Sales;vgame;Kaggle;132;Yes;16719;4;video_game_sales;data.csv
+Gender Recognition by Voice;voice;Kaggle;20;Yes;3168;2;voice_gender;voice.csv
+Wine Quality;wine;UCI;14;Yes;6497;4;wine;https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/
+Yeast;yeast;UCI;9;Yes;1484;5;yeast;https://archive.ics.uci.edu/ml/machine-learning-databases/yeast/yeast.data

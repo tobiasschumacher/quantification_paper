@@ -1,0 +1,47 @@
+# python cache
+*.pyc
+*__pycache__*
+
+# jupyter notebook cache
+.ipynb*
+
+# obsolete scripts
+*QMeasOpt.py
+*QTree.py
+
+# test script
+test.py
+
+# amazon data leftovers
+*amazon*
+
+# data sets
+*.pkl
+data/reuters/*
+data/*/*.csv
+
+# temporary model files for trees/forests
+qforest/model
+qforest/train.arff
+qforest/test.arff
+
+# pycharm stuff
+*.idea*
+
+# experiment outputs csvs
+experiments/*
+
+#plot files
+eval/plots*
+
+# R junk
+*.RDS
+*.RData
+*.Rhistory
+*.Rproj.user
+*.Rproj
+.Rproj.user
+
+# external Code
+DyS*
+SVMperf*
