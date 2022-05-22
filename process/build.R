@@ -11,12 +11,14 @@ source("metrics.R")
 # PATHS
 res_path <- "../results/preprocessed/"
 exp_path <- "../results/raw/"
+table_path <- "../results/tables/"
 res_files <- list.files(exp_path)
 wd <- getwd()
 
 # GENERAL VARIABLES
 dta_index <- fread("../data/data_index.csv", sep = ';')
 alg_index <- fread("../alg_index.csv", sep = ';')
+clf_index <- fread("../clf_index.csv", sep = ';')
 
 dtas <- dta_index$dataset
 algs <- alg_index$algorithm
@@ -50,7 +52,6 @@ bin_labels <- paste0("binary_",
                        "fewtestpos",
                        "trainimba",
                        "trainbal"))
-bin_dtas <- dta_index[classes == 2L,dataset]
 
 
 ### VARIABLES FOR MULTICLASS ANALYSIS
@@ -70,6 +71,21 @@ mc_labels <- paste0("mc_",
                       "highshift",
                       "fewtrain",
                       "muchtrain"))
+
+### VARIABLES FOR CLF-IMPACT ANALYSIS
+clf_dtas <- dta_index[size <= 10000L,dataset]
+clf_bin_dtas <- dta_index[(size <= 10000L) & classes == 2L,dataset]
+clf_mc_dtas <- dta_index[(size <= 10000L) & classes > 2L,dataset]
+clf_bin_algs <- clf_index$algorithm
+clf_bin_names <- clf_index$abbr
+clf_mc_algs <- clf_index[multiclass==1, algorithm]
+clf_mc_names <- clf_index[multiclass==1, abbr]
+clf_dta_names <- dta_index[size <= 10000L,abbr]
+clf_bin_dta_names <- dta_index[(size <= 10000L) & classes == 2L,abbr]
+clf_mc_dta_names <- dta_index[(size <= 10000L) & classes > 2L,abbr]
+clf_args <- c("NULL")
+clf_bin_labels <- c("clf_binary")
+clf_mc_labels <- c("clf_multiclass")
 
 
 ## train/test-splits
@@ -190,7 +206,7 @@ build <- function(ds_name){
 ################################################################################
 # Compute performance measures from metrics.R to dataframes resulting from build
 ################################################################################
-add_metrics <- function(ds_name, metrics){
+add_metrics <- function(ds_name, metrics, clf = FALSE){
   dta <- fread(paste0(res_path,ds_name, "_stats.csv"))
   
   
@@ -200,13 +216,31 @@ add_metrics <- function(ds_name, metrics){
   labels <- eval(parse(text = labels))
   L = length(labels)
   
-  if(L>2){
-    algs <-  alg_index[multiclass == 1, algorithm]
-    alg_names <- alg_index[multiclass == 1, abbr]
-  } else{
-    algs <- alg_index$algorithm
-    alg_names <- alg_index$abbr
+  if(clf == FALSE){
+    if(L>2){
+      algs <-  alg_index[multiclass == 1, algorithm]
+      alg_names <- alg_index[multiclass == 1, abbr]
+    } else{
+      algs <- alg_index$algorithm
+      alg_names <- alg_index$abbr
+    }
+    fname = paste0(res_path,ds_name,"_stats_metrics.csv")
   }
+  else{
+    if(L>2){
+      algs <-  clf_index[multiclass == 1, algorithm]
+      alg_names <- clf_index[multiclass == 1, abbr]
+    } else{
+      algs <- clf_index$algorithm
+      alg_names <- clf_index$abbr
+    }
+    fname = paste0(res_path,ds_name,"_clf_stats_metrics.csv")
+  }
+
+  
+  # alg_cols <- colnames(dta)[str_detect(colnames(dta), "_Prediction")]
+  # alg_names <- str_split(alg_cols, "_Prediction")
+  # alg_names <- unique(unlist(lapply(alg_names, function(s) return(s[[1]]))))
   
   train_ds <- paste0("Training_Class_",labels,"_Relative")
   test_ds <- paste0("Test_Class_",labels,"_Relative")
@@ -232,14 +266,14 @@ add_metrics <- function(ds_name, metrics){
   print(alg) 
   }
   
-  fwrite(dta, paste0(res_path,ds_name,"_stats_metrics.csv"))
+  fwrite(dta, fname)
 }
 
 
 ################################################################################
 # Compute MAE distance between training and test set
 ################################################################################
-add_ttdist <- function(ds_name){
+add_ttdist <- function(ds_name, clf = FALSE){
   tt_distance <- function(train_cols, test_cols){
     lapply(1:n,
            function(i){
@@ -248,26 +282,71 @@ add_ttdist <- function(ds_name){
              return(MAE(p1/100,p2/100))
            })
   }
-  dta <- fread(paste0(res_path,ds_name, "_stats_metrics.csv"))
+  if(clf){
+    fname <- paste0(res_path,ds_name, "_clf_stats_metrics.csv")
+  }else{
+    fname <- paste0(res_path,ds_name, "_stats_metrics.csv")
+  }
+  
+  dta <- fread(fname)
   n <- nrow(dta)
   dta[, Drift_MAE := tt_distance(D_train, D_test)]
   
-  fwrite(dta, paste0(res_path,ds_name, "_stats_metrics.csv"))
+  fwrite(dta, fname)
 }
 
 
+################################################################################
+# BUILD MATRICES OF AVERAGE PERFORMANCES PER ALGORITHM/DATASET
+################################################################################
+
+
+write_perf_mat <- function(labels, args, dtas, dta_names, alg_names, measures, clf=FALSE){
+  for (i in 1:length(labels)) {
+    print(labels[i])
+    dta_args <- args[i]
+    if (dta_args == "NULL"){
+      dta_args <- NULL
+    }
+    lbl <- labels[i]
+    
+    for (err_func in measures) {
+      print(err_func)
+      perf_mat <- build_perf_mat(dtas, alg_names, err_func, dta_args=dta_args, clf=clf)
+      colnames(perf_mat) <- alg_names
+      
+      rownames(perf_mat) <- dta_names
+      perf_mat <- perf_mat[order(row.names(perf_mat)),]
+      cmeans <- colMeans(perf_mat)
+      perf_mat <- rbind(perf_mat,cmeans)
+      rownames(perf_mat)[nrow(perf_mat)] <- "Mean"
+      fname <- paste0(lbl,"_",err_func,".csv")
+      fwrite(as.data.frame(round(perf_mat,digits = 3)),
+             file=paste0(table_path,fname),
+             sep=',', row.names = TRUE)
+      
+    }
+  }
+}
 
 # helper function for performance matrix construction
-build_perf_mat <- function(data_sets, algs, p_metric, dta_args = NULL){
+build_perf_mat <- function(data_sets, algs, p_metric, dta_args = NULL, clf=FALSE){
   perf_mat <- do.call(rbind,lapply(data_sets, function(ds_name){
-    dta <- fread(paste0(res_path,ds_name,"_stats_metrics.csv"))
+    if(clf){
+      fname <- paste0(res_path,ds_name,"_clf_stats_metrics.csv")
+    }
+    else{
+      fname <- paste0(res_path,ds_name,"_stats_metrics.csv")
+    }
+    print(ds_name)
+    dta <- fread(fname)
     if(!is.null(dta_args)){ eval(parse(text=paste0("dta <- dta[",dta_args,"]"))) }
     agg_mat <- do.call(cbind,lapply(algs,
                                     function(alg){
                                       col <- paste0(alg,"_",p_metric)
                                       mean(dta[,col,with = FALSE][[1]], na.rm = TRUE)
                                     }))
-    
+
   }))
   return(perf_mat)
 }

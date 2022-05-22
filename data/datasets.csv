@@ -33,9 +33,9 @@ Phishing Websites;phish;UCI;31;No;11055;2;phishing;https://archive.ics.uci.edu/m
 Spambase;spam;UCI;58;Yes;4601;2;spambase;https://archive.ics.uci.edu/ml/machine-learning-databases/spambase/spambase.data
 Students Performance in Exams;study;Kaggle;19;Yes;1000;2;student_performance;StudentsPerformance.csv
 Telco Customer Churn;telco;Kaggle;45;Yes;7032;2;telco_churn;churn.csv
-First-order Theorem Proving;thrm;UCI;51;Yes;6117;3;theorem;all-data-raw.csv
+First-order Theorem Proving;thrm;UCI;51;Yes;6117;5;theorem;all-data-raw.csv
 Turkiye Student Evaluation;turk;UCI;31;No;5820;3;turk_student_eval;https://archive.ics.uci.edu/ml/machine-learning-databases/00262/turkiye-student-evaluation_generic.csv
 Video Game Sales;vgame;Kaggle;132;Yes;16719;4;video_game_sales;data.csv
 Gender Recognition by Voice;voice;Kaggle;20;Yes;3168;2;voice_gender;voice.csv
 Wine Quality;wine;UCI;14;Yes;6497;4;wine;https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/
-Yeast;yeast;UCI;9;Yes;1484;5;yeast;https://archive.ics.uci.edu/ml/machine-learning-databases/yeast/yeast.data
+Yeast;yeast;UCI;9;Yes;1484;4;yeast;https://archive.ics.uci.edu/ml/machine-learning-databases/yeast/yeast.data

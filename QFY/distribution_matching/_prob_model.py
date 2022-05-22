@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov 24 01:49:22 2018
-
-@author: tobi_
-"""
-
 import numpy as np
 from sklearn.metrics import pairwise_distances_chunked
 import cvxpy as cvx

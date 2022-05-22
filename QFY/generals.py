@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 10 10:54:45 2018
-
-@author: tobi_
-"""
-
 import numpy as np
 from itertools import combinations_with_replacement
 
@@ -49,3 +42,13 @@ def partitions(n, b):
 
 def distributions(n_classes, den):
     return 1.0 / den * np.array(list(partitions(den, n_classes)))
+
+
+def confusion_matrix(y_true, y_pred, Y):
+    L = len(Y)
+    Yi = {Y[i]: i for i in range(L)}
+    CM = np.zeros((L, L))
+    for i in range(len(y_true)):
+        CM[Yi[y_pred[i]], Yi[y_true[i]]] += 1
+    return CM
+

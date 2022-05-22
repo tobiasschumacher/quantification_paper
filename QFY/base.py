@@ -1,4 +1,4 @@
-  # quantifier base class
+# quantifier base class
 from abc import ABC, abstractmethod
 from sklearn import svm, linear_model, model_selection
 from .generals import rel_target_prevalences
@@ -12,6 +12,7 @@ class Quantifier(ABC):
     def __init__(self):
         # Y: target class labels
         self.Y = None
+
     #
     # @abstractmethod
     # def fit(self, X, y, Y_cts):
@@ -41,11 +42,11 @@ class CLFQuantifier(Quantifier, ABC):
     # def _score_proba(self, X):
     #     return self.clf.predict_proba(X)[:,1]
 
-    # intrinsic cv_score-function which perform CV for binary cross validation
+    # intrinsic cv_score-function which performs CV for binary cross validation
     # in multiclass case (cf AC models)
     def _cv_score(self, X, y, nfolds):
 
-        if not self._clf_type == "prob": #TODO: decision_function-Formate checken
+        if not self._clf_type == "prob":  # TODO: decision_function-Formate checken
             y_scores = np.zeros(y.shape)
         else:
             y_scores = np.zeros((len(y), len(self.Y)))
@@ -145,5 +146,3 @@ class ScoreCLFQuantifier(CLFQuantifier, ABC):
             self._clf_score = self.clf.decision_function
         self.nfolds = nfolds
         # self.CM = None
-
-

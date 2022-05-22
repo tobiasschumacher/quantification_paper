@@ -2,8 +2,6 @@ from ._base import *
 import pandas as pd
 
 
-# TODO: Adaption für readme
-# TODO: Konzept für binning
 ########################################################################################################################
 # parent class for Mixture Models that do not use classifiers and instead only work with features
 ########################################################################################################################

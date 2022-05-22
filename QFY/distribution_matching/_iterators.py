@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct  4 11:31:21 2018
-
-@author: tobi_
-"""
-
 from ._base import *
 
 

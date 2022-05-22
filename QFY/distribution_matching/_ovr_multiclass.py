@@ -55,7 +55,12 @@ class OVRQuantifier(Quantifier):
 
 class DyS(OVRQuantifier):
 
-    def __init__(self, clf=svm.SVC(), distance="TS", nbins=10, nfolds=10, solve_cvx=True):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 distance="TS",
+                 nbins=10,
+                 nfolds=10,
+                 solve_cvx=True):
         OVRQuantifier.__init__(self, qf=BinaryDyS(clf=clf,
                                                   distance=distance,
                                                   nbins=nbins,
@@ -69,7 +74,10 @@ class DyS(OVRQuantifier):
 # ----------------------------------------------------------------------------------------------------------------------
 class FormanMM(DyS):
 
-    def __init__(self, clf=svm.LinearSVC(), nbins=100, nfolds=10):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nbins=100,
+                 nfolds=10):
         DyS.__init__(self, clf=clf, distance="L1", nfolds=nfolds, nbins=nbins)
 
 

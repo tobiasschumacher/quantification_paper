@@ -22,7 +22,6 @@ class ACModel(CLFQuantifier, ABC):
         pass
 
     def fit(self, X, y, Y_cts):
-
         self.Y = Y_cts[0]
         Y_cts = Y_cts[1]
 
@@ -34,7 +33,6 @@ class ACModel(CLFQuantifier, ABC):
         return self
 
     def predict(self, X):
-
         y_pos = self._score_pos(X)
         delta = self.tpr - self.fpr
 
@@ -73,8 +71,8 @@ class BinaryPAC(ACModel, ProbCLFQuantifier):
 
     def _get_rates(self, y, y_scores, Y_cts):
         pos_ind = y == self.Y[1]
-        tpr = np.sum(y_scores[pos_ind,1]) / Y_cts[1]
-        fpr = np.sum(y_scores[~pos_ind,1]) / Y_cts[0]
+        tpr = np.sum(y_scores[pos_ind, 1]) / Y_cts[1]
+        fpr = np.sum(y_scores[~pos_ind, 1]) / Y_cts[0]
         return tpr, fpr
 
 
@@ -162,7 +160,7 @@ class ThresholdSelector(ThresholdModel, ABC):
         self.threshold = t
 
         ir: int = 0
-        while y_scores[ir] < t:
+        while ir < n and y_scores[ir] < t:
             ir += 1
 
         il: int = ir
@@ -257,7 +255,7 @@ class BinaryMS(ScoreCLFQuantifier):
         self.threshold_models.append((ThresholdModel(self.clf, self.nfolds, tpr=tpr, fpr=fpr, threshold=t)))
 
         ir = 0
-        while y_scores[ir] < t:
+        while ir < n and y_scores[ir] < t:
             ir += 1
 
         il = ir

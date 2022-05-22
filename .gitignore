@@ -5,19 +5,8 @@
 # jupyter notebook cache
 .ipynb*
 
-# obsolete scripts
-*QMeasOpt.py
-*QTree.py
-
-# test script
-test.py
-
-# amazon data leftovers
-*amazon*
-
 # data sets
 *.pkl
-data/reuters/*
 data/*/*.csv
 
 # temporary model files for trees/forests
@@ -28,11 +17,9 @@ qforest/test.arff
 # pycharm stuff
 *.idea*
 
-# experiment outputs csvs
-experiments/*
+# results files, plots, etc
+results/*
 
-#plot files
-eval/plots*
 
 # R junk
 *.RDS
@@ -42,6 +29,5 @@ eval/plots*
 *.Rproj
 .Rproj.user
 
-# external Code
-DyS*
+# external code
 SVMperf*

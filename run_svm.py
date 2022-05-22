@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Nov  4 14:31:23 2018
-
-@author: tobi_
-"""
-
 import pandas as pd
 import numpy as np
 from QFY.classification_models import SVMPerf
@@ -32,8 +25,26 @@ def parse_args():
         help="Datasets used in evaluation."
     )
     parser.add_argument(
+        "--kernel", type=str,
+        default="linear",
+        help="Kernel function for SVM."
+    )
+    parser.add_argument(
+        "--gamma", type=float,
+        default=None,
+        help="Parameter Gamma for SVM kernel."
+    )
+    parser.add_argument(
         "--timeout", type=int,
         help="Timeout in seconds for training individual SVM instance"
+    )
+    parser.add_argument(
+        "--minsize", type=int, nargs="?", default=None,
+        help="Minimum size of datasets to consider."
+    )
+    parser.add_argument(
+        "--maxsize", type=int, nargs="?", default=None,
+        help="Maximum size of datasets to consider."
     )
     parser.add_argument(
         "--seeds", type=int, nargs="+", default=global_seeds,
@@ -44,6 +55,10 @@ def parse_args():
 
 def run_svm(datasets=None,
             timeout=None,
+            kernel="linear",
+            gamma=None,
+            minsize=None,
+            maxsize=None,
             seed=4711):
 
     if datasets is None:
@@ -53,6 +68,12 @@ def run_svm(datasets=None,
         df_ind = data_set_index.iloc[min_ind:]
     else:
         df_ind = data_set_index.loc[datasets]
+
+    if minsize is not None:
+        df_ind = df_ind.loc[df_ind["size"] >= minsize]
+
+    if maxsize is not None:
+        df_ind = df_ind.loc[df_ind["size"] <= maxsize]
 
     df_ind = df_ind.loc[df_ind["classes"] == 2]
     datasets = list(df_ind.index)
@@ -75,9 +96,13 @@ def run_svm(datasets=None,
         colnames += ["Training_Class_" + str(l) + "_Relative" for l in Y]
         colnames += ["Test_Class_" + str(l) + "_Absolute" for l in Y]
         colnames += ["Test_Class_" + str(l) + "_Relative" for l in Y]
-        colnames += ["SVM_KLD_Prediction_Class_" + str(l) for l in Y]
 
-        colnames += ["SVM_Q_Prediction_Class_" + str(l) for l in Y]
+        if kernel == "rbf":
+            colnames += ["SVR_KLD_Prediction_Class_" + str(l) for l in Y]
+            colnames += ["SVR_Q_Prediction_Class_" + str(l) for l in Y]
+        else:
+            colnames += ["SVM_KLD_Prediction_Class_" + str(l) for l in Y]
+            colnames += ["SVM_Q_Prediction_Class_" + str(l) for l in Y]
 
         n_cols = len(colnames)
 
@@ -107,7 +132,8 @@ def run_svm(datasets=None,
                     k = 0
                     for loss in ['kld', 'q']:
                         try:
-                            stats_matrix[i, (j + k):(j + k + 2)] = train_svm(X_train, y_train, X_test, loss, timeout)
+                            stats_matrix[i, (j + k):(j + k + 2)] = train_svm(X_train, y_train, X_test,
+                                                                             kernel, gamma, loss, timeout)
                         except:
                             break
                         k += 2
@@ -125,6 +151,8 @@ def run_svm(datasets=None,
 def train_svm(X_train,
               y_train,
               X_test,
+              kernel,
+              gamma,
               loss,
               timeout):
     if len(X_train) > 10000:
@@ -132,7 +160,10 @@ def train_svm(X_train,
     else:
         C = 1
 
-    qf = SVMPerf(svmperf_base=svmperf_path, loss=loss, C=C, timeout=timeout)
+    if gamma is None:
+        gamma = 1.0/X_train.shape[1]
+
+    qf = SVMPerf(svmperf_base=svmperf_path, loss=loss, kernel=kernel, gamma=gamma, C=C, timeout=timeout)
     qf.fit(X_train, y_train)
 
     yp = qf.predict(X_test)
@@ -143,4 +174,5 @@ def train_svm(X_train,
 if __name__ == "__main__":
     args = parse_args()
     for seed in args.seeds:
-        run_svm(args.datasets, args.timeout, seed)
+        run_svm(args.datasets, timeout=args.timeout, maxsize=args.maxsize, minsize=args.minsize,
+                kernel=args.kernel, gamma=args.gamma, seed=seed)

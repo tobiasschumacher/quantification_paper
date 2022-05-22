@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 17 01:18:20 2018
-
-@author: tobi_
-"""
-
 import sys
 import importlib.util
 import warnings

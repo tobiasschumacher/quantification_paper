@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 13 17:41:20 2019
-
-@author: Tobias Schumacher
-"""
-
 import numpy as np
 import pandas as pd
 import subprocess

@@ -1,12 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 31 16:44:23 2018
-
-@author: tobi_
-"""
-
 from ._base import *
-from sklearn.metrics import confusion_matrix
+from ..generals import confusion_matrix
 
 
 ########################################################################################################################
@@ -74,17 +67,20 @@ class BinaryDyS(CLFModel, ScoreCLFQuantifier):
 ########################################################################################################################
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Default CLassifier-Based Mixture Model
+# Default Classifier-Based Mixture Model
 # -> Variant of AC
 # ----------------------------------------------------------------------------------------------------------------------
 class GAC(CLFModel, CrispCLFQuantifier):
 
-    def __init__(self, clf=svm.LinearSVC(), distance="L2", nfolds=10, solve_cvx=True):
+    def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 distance="L2",
+                 nfolds=10,
+                 solve_cvx=True):
         CrispCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
         DMMBase.__init__(self, dist=distance, solve_cvx=solve_cvx)
 
     def _fit_cm(self, y, y_scores, Y_cts):
-        CM = confusion_matrix(y, y_scores, self.Y).transpose()
+        CM = confusion_matrix(y, y_scores, self.Y)
         self.CM = CM / Y_cts
 
     def score(self, X):
@@ -93,7 +89,7 @@ class GAC(CLFModel, CrispCLFQuantifier):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Default Probabilistic CLassifier-Based Mixture Model
+# Default Probabilistic Classifier-Based Mixture Model
 # -> Variant of PAC
 # ----------------------------------------------------------------------------------------------------------------------
 class GPAC(CLFModel, ProbCLFQuantifier):
@@ -156,7 +152,7 @@ class FM(CLFModel, ProbCLFQuantifier):
 # HDy simply combination of parents
 class HDy(GAC):
 
-    def __init__(self, clf=svm.SVC(), nfolds=10):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10):
         GAC.__init__(self, clf=clf, distance="HD", nfolds=nfolds, solve_cvx=True)
-
-# TODO: ggf mehr distanzen einbinden

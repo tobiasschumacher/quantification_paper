@@ -62,25 +62,38 @@ class AC(ACQuantifier):
 
 
 class PAC(ACQuantifier):
-    def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'), nfolds=10):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10):
         ACQuantifier.__init__(self, qf=BinaryPAC(clf=clf, nfolds=nfolds))
 
 
 class TSX(ACQuantifier):
-    def __init__(self, clf=svm.LinearSVC(), nfolds=10, precision=2):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10,
+                 precision=2):
         ACQuantifier.__init__(self, qf=BinaryTSX(clf=clf, nfolds=nfolds, precision=precision))
 
 
 class TS50(ACQuantifier):
-    def __init__(self, clf=svm.LinearSVC(), nfolds=10, precision=2):
+    def __init__(self,
+                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10,
+                 precision=2):
         ACQuantifier.__init__(self, qf=BinaryTS50(clf=clf, nfolds=nfolds, precision=precision))
 
 
 class TSMax(ACQuantifier):
-    def __init__(self, clf=svm.LinearSVC(), nfolds=10, precision=2):
+    def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10,
+                 precision=2):
         ACQuantifier.__init__(self, qf=BinaryTSMax(clf=clf, nfolds=nfolds, precision=precision))
 
 
 class MS(ACQuantifier):
-    def __init__(self, clf=svm.LinearSVC(), nfolds=10, precision=2, delta_min=0.25):
+    def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 nfolds=10,
+                 precision=2,
+                 delta_min=0.25):
         ACQuantifier.__init__(self, qf=BinaryMS(clf=clf, nfolds=nfolds, precision=precision, delta_min=delta_min))
