@@ -1,7 +1,6 @@
 # quantifier base class
 from abc import ABC, abstractmethod
-from sklearn import svm, linear_model, model_selection
-from .generals import rel_target_prevalences
+from sklearn import model_selection
 import numpy as np
 
 
@@ -26,34 +25,26 @@ class Quantifier(ABC):
 # parent class for quantifiers which need classifiers to build their predictions
 class CLFQuantifier(Quantifier, ABC):
 
-    def __init__(self, clf=None, nfolds=10):
+    def __init__(self, clf=None, n_folds=10):
         Quantifier.__init__(self)
-        if clf is None:
-            self.clf = linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto')
-        else:
-            if not hasattr(clf, "fit") or not hasattr(clf, "predict"):
-                raise TypeError("Input clf needs to be a classifier with fit() and predict() function")
-            self.clf = clf
-        self.nfolds = nfolds
-        self._clf_type = None
+        if not hasattr(clf, "fit") or not hasattr(clf, "predict"):
+            raise TypeError("Input clf needs to be a classifier with fit() and predict() function")
+        self.clf = clf
+        self.n_folds = n_folds
+        self._init_scores = None
         self._clf_score = None
-
-    # private functions to enable scoring with either predict_proba or decision_function of underlying clf
-    # def _score_proba(self, X):
-    #     return self.clf.predict_proba(X)[:,1]
 
     # intrinsic cv_score-function which performs CV for binary cross validation
     # in multiclass case (cf AC models)
-    def _cv_score(self, X, y, nfolds):
 
-        if not self._clf_type == "prob":  # TODO: decision_function-Formate checken
-            y_scores = np.zeros(y.shape)
-        else:
-            y_scores = np.zeros((len(y), len(self.Y)))
+    def _cv_score(self, X, y, n_folds):
 
-        if nfolds > 1:
+        y_scores = self._init_scores(y)
+
+        if n_folds > 1:
+
             # estimate confusion matrix via stratified cross-validation
-            skf = model_selection.StratifiedKFold(n_splits=nfolds)
+            skf = model_selection.StratifiedKFold(n_splits=n_folds)
             for train_index, test_index in skf.split(X, y):
                 X_train, X_test = X[train_index], X[test_index]
                 y_train = y[train_index]
@@ -63,14 +54,10 @@ class CLFQuantifier(Quantifier, ABC):
         # now fit real classifier
         self.clf.fit(X, y)
 
-        if nfolds < 2:
+        if n_folds < 2:
             y_scores = self._clf_score(X)
 
         return y_scores
-
-    # @abstractmethod
-    # def fit(self, X, y, Y_cts):
-    #     pass
 
     @abstractmethod
     def predict(self, X):
@@ -80,69 +67,52 @@ class CLFQuantifier(Quantifier, ABC):
 # parent class for all quantifiers which are built on crisp predictions of a classifier
 class CrispCLFQuantifier(CLFQuantifier, ABC):
 
-    def __init__(self, clf=None, nfolds=10):
+    def __init__(self, clf=None, n_folds=10):
         CLFQuantifier.__init__(self, clf)
-        self.nfolds = nfolds
-        self._clf_type = "crisp"
+        self.n_folds = n_folds
+        self._init_scores = lambda y: np.zeros(y.shape)
         self._clf_score = self.clf.predict
-        # self.CM = None
-
-    # def fit(self, X, y, Y_cts=None,  *args):
-    #
-    #     if Y_cts is None:
-    #         Y_cts = np.unique(y, return_counts=True)
-    #
-    #     self.Y = Y_cts[0]
-    #     Y_cts = Y_cts[1]
-    #
-    #     nfolds = min(self.nfolds, min(Y_cts))
-    #     y_scores = self._cv_score(X, y, nfolds)
-    #
-    #     CM = metrics.confusion_matrix(y_scores, y, self.Y)
-    #     self.CM = CM / CM.sum(axis=0, keepdims=True)
 
 
 # parent class for all quantifiers which are built on probabilistic confidence scores of a classifier
 class ProbCLFQuantifier(CLFQuantifier, ABC):
 
-    def __init__(self, clf=None, nfolds=10):
+    def _init_prob_matrix(self, y):
+        return np.zeros((y.shape[0], len(self.Y)))
+
+    def __init__(self, clf=None, n_folds=10):
         CLFQuantifier.__init__(self, clf=clf)
         if not hasattr(self.clf, "predict_proba"):
             raise TypeError("Input clf needs to be a classifier with predict_proba() function")
-        self.nfolds = nfolds
-        self._clf_type = "prob"
+        self.n_folds = n_folds
+        self._init_scores = self._init_prob_matrix
         self._clf_score = self.clf.predict_proba
-        # self.CM = None
-
-    # default fit according to PAC
-    # def fit(self, X, y, Y_cts=None,  *args):
-    #
-    #     if Y_cts is None:
-    #         Y_cts = np.unique(y, return_counts=True)
-    #     self.Y = Y_cts[0]
-    #     Y_cts = Y_cts[1]
-    #
-    #     nfolds = min(self.nfolds, min(Y_cts))
-    #     y_scores = self._cv_score(X, y, nfolds)
-    #
-    #     self.CM = np.hstack([y_scores[np.where(y == l)[0]].sum(axis=0) for l in self.Y]) / Y_cts
 
 
 # parent class for all quantifiers which are built on more general decision function confidence scores of a classifier
 # -> can be decision functions as in SVMs, or probability scores as in logistic regression
 class ScoreCLFQuantifier(CLFQuantifier, ABC):
 
-    def __init__(self, clf=None, nfolds=10):
+    def _score_proba(self, X):
+        return self.clf.predict_proba(X)[:, -1]
+
+    def __init__(self, clf=None, n_folds=10, predict_proba=None):
         CLFQuantifier.__init__(self, clf=clf)
 
-        if not hasattr(self.clf, "decision_function"):
-            self._clf_type = "prob"
+        self.predict_proba = False if predict_proba is None else predict_proba
+
+        if self.predict_proba:
+            if not hasattr(self.clf, "predict_proba"):
+                raise TypeError("Input clf needs to be a classifier with predict_proba() method if predict_proba is "
+                                "set to True.")
+            self._clf_score = self._score_proba
+        elif not hasattr(self.clf, "decision_function"):
             if not hasattr(self.clf, "predict_proba"):
                 raise TypeError("Input clf needs to be a classifier with either decision_function() or predict_proba() "
                                 "method.")
-            self._clf_score = self.clf.predict_proba
+            self._clf_score = self._score_proba
         else:
-            self._clf_type = "score"
             self._clf_score = self.clf.decision_function
-        self.nfolds = nfolds
-        # self.CM = None
+
+        self.n_folds = n_folds
+        self._init_scores = lambda y: np.zeros(y.shape)

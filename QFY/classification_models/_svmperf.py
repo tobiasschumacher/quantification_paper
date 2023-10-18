@@ -14,14 +14,14 @@ class SVMperfCLassifier:
     valid_losses = {'01': 0, 'kld': 12, 'nkld': 13, 'q': 22, 'qacc': 23, 'qf1': 24, 'qgm': 25}  # 12,22
     valid_kernels = {'linear': 0, 'poly': 1, 'rbf': 2, 'sig': 3}  # 0, 2
 
-    def __init__(self, svmperf_base, kernel="linear", gamma=1, C=0.01, loss='01', timeout=None):
+    def __init__(self, svmperf_path, kernel="linear", gamma=1, C=0.01, loss='01', timeout=None):
         assert loss in self.valid_losses, 'unsupported loss {}, valid ones are {}'.format(loss, list(
             self.valid_losses.keys()))
         assert kernel in self.valid_kernels, 'unsupported kerneö {}, valid ones are {}'.format(loss, list(
             self.valid_kernels.keys()))
         self.tmpdir = None
-        self.svmperf_learn = join(svmperf_base, 'svm_perf_learn')
-        self.svmperf_classify = join(svmperf_base, 'svm_perf_classify')
+        self.svmperf_learn = join(svmperf_path, 'svm_perf_learn')
+        self.svmperf_classify = join(svmperf_path, 'svm_perf_classify')
         self.loss = '-w 3 -l ' + str(self.valid_losses[loss])
         self.kernel = '-t ' + str(self.valid_kernels[kernel])
         if kernel == "rbf":
@@ -37,10 +37,11 @@ class SVMperfCLassifier:
         self.Y = np.unique(y)
         self.tmpdir = tempfile.TemporaryDirectory()
         self.model = join(self.tmpdir.name, 'model')
+        print(self.model)
         traindat = join(self.tmpdir.name, 'train.dat')
 
         dump_svmlight_file(X, y, traindat, zero_based=False)
-        cmd = ' '.join([self.svmperf_learn, self.kernel, self.param_C, self.loss, traindat, self.model])
+        cmd = ' '.join([self.svmperf_learn, self.kernel, self.param_C, self.gamma, self.loss, traindat, self.model])
 
         p = subprocess.run(cmd.split(), stdout=PIPE, stderr=STDOUT, timeout=self.timeout)
 
@@ -66,20 +67,95 @@ class SVMperfCLassifier:
 
         return [self.Y[1] if p > 0 else self.Y[0] for p in np.loadtxt(predictions)]
 
+    def cleanup(self):
+        self.tmpdir.cleanup()
+
 
 class SVMPerf(CC):
 
     def __init__(self,
-                 svmperf_base,
+                 svmperf_path,
                  kernel="rbf",
                  C=1,
                  gamma=1,
                  loss='kld',
                  timeout=None):
-        CC.__init__(self, clf=SVMperfCLassifier(svmperf_base=svmperf_base,
+
+        CC.__init__(self, clf=SVMperfCLassifier(svmperf_path=svmperf_path,
                                                 kernel=kernel,
                                                 C=C,
                                                 gamma=gamma,
                                                 loss=loss,
                                                 timeout=timeout)
                     )
+
+    def cleanup(self):
+        self.clf.cleanup()
+
+
+class SVM_KLD(SVMPerf):
+
+    def __init__(self,
+                 svmperf_path,
+                 C=1,
+                 timeout=None):
+
+        SVMPerf.__init__(self,
+                         svmperf_path=svmperf_path,
+                         kernel="linear",
+                         C=C,
+                         loss='kld',
+                         timeout=timeout
+                         )
+
+
+class SVM_Q(SVMPerf):
+
+    def __init__(self,
+                 svmperf_path,
+                 C=1,
+                 timeout=None):
+
+        SVMPerf.__init__(self,
+                         svmperf_path=svmperf_path,
+                         kernel="linear",
+                         C=C,
+                         loss='q',
+                         timeout=timeout
+                         )
+
+
+class RBF_KLD(SVMPerf):
+
+    def __init__(self,
+                 svmperf_path,
+                 C=1,
+                 gamma=1,
+                 timeout=None):
+
+        SVMPerf.__init__(self,
+                         svmperf_path=svmperf_path,
+                         kernel="rbf",
+                         C=C,
+                         gamma=gamma,
+                         loss='kld',
+                         timeout=timeout
+                         )
+
+
+class RBF_Q(SVMPerf):
+
+    def __init__(self,
+                 svmperf_path,
+                 C=1,
+                 gamma=1,
+                 timeout=None):
+
+        SVMPerf.__init__(self,
+                         svmperf_path=svmperf_path,
+                         kernel="rbf",
+                         C=C,
+                         gamma=gamma,
+                         loss='q',
+                         timeout=timeout
+                         )

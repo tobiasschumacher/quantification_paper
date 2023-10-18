@@ -124,6 +124,7 @@ class RMBase(FeatureModel):
 class ReadMe(Quantifier):
 
     def __init__(self, dist="L2", solve_cvx=True, n_features=None, n_subsets=100):
+        Quantifier.__init__(self)
         self.D = None
         self.L = None
         self.n_features = n_features

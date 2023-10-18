@@ -1,5 +1,6 @@
 from ._base import *
-from sklearn import preprocessing
+from sklearn import preprocessing, linear_model, svm
+
 from copy import deepcopy
 from ._clf_models import BinaryDyS
 from ._iterators import BinaryCDE
@@ -56,16 +57,18 @@ class OVRQuantifier(Quantifier):
 class DyS(OVRQuantifier):
 
     def __init__(self,
-                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
+                 clf=svm.SVC(),
                  distance="TS",
-                 nbins=10,
-                 nfolds=10,
-                 solve_cvx=True):
+                 n_bins=10,
+                 n_folds=10,
+                 solve_cvx=True,
+                 predict_proba=None):
         OVRQuantifier.__init__(self, qf=BinaryDyS(clf=clf,
                                                   distance=distance,
-                                                  nbins=nbins,
-                                                  nfolds=nfolds,
-                                                  solve_cvx=solve_cvx
+                                                  n_bins=n_bins,
+                                                  n_folds=n_folds,
+                                                  solve_cvx=solve_cvx,
+                                                  predict_proba=predict_proba
                                                   ))
 
 
@@ -75,10 +78,11 @@ class DyS(OVRQuantifier):
 class FormanMM(DyS):
 
     def __init__(self,
-                 clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
-                 nbins=100,
-                 nfolds=10):
-        DyS.__init__(self, clf=clf, distance="L1", nfolds=nfolds, nbins=nbins)
+                 clf=svm.SVC(),
+                 n_bins=100,
+                 n_folds=10,
+                 predict_proba=None):
+        DyS.__init__(self, clf=clf, distance="L1", n_folds=n_folds, n_bins=n_bins, predict_proba=predict_proba)
 
 
 class CDE(OVRQuantifier):

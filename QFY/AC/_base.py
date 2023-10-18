@@ -25,8 +25,8 @@ class ACModel(CLFQuantifier, ABC):
         self.Y = Y_cts[0]
         Y_cts = Y_cts[1]
 
-        nfolds = min(self.nfolds, min(Y_cts))
-        y_scores = self._cv_score(X, y, nfolds)
+        n_folds = min(self.n_folds, min(Y_cts))
+        y_scores = self._cv_score(X, y, n_folds)
 
         self.tpr, self.fpr = self._get_rates(y, y_scores, Y_cts)
 
@@ -46,9 +46,9 @@ class ACModel(CLFQuantifier, ABC):
 
 class BinaryAC(ACModel, CrispCLFQuantifier):
 
-    def __init__(self, clf, nfolds):
+    def __init__(self, clf, n_folds):
         ACModel.__init__(self)
-        CrispCLFQuantifier.__init__(self, clf, nfolds)
+        CrispCLFQuantifier.__init__(self, clf, n_folds)
 
     def _score_pos(self, X):
         return np.sum(self.clf.predict(X) == self.Y[1]) / X.shape[0]
@@ -62,9 +62,9 @@ class BinaryAC(ACModel, CrispCLFQuantifier):
 
 class BinaryPAC(ACModel, ProbCLFQuantifier):
 
-    def __init__(self, clf, nfolds):
+    def __init__(self, clf, n_folds):
         ACModel.__init__(self)
-        ProbCLFQuantifier.__init__(self, clf, nfolds)
+        ProbCLFQuantifier.__init__(self, clf, n_folds)
 
     def _score_pos(self, X):
         return np.sum(self._clf_score(X)[:, 1]) / X.shape[0]
@@ -106,9 +106,9 @@ def _delta_false(delta):
 
 class ThresholdModel(ACModel, ScoreCLFQuantifier):
 
-    def __init__(self, clf, nfolds, tpr=None, fpr=None, threshold=None):
+    def __init__(self, clf, n_folds, tpr=None, fpr=None, threshold=None, predict_proba=None):
         ACModel.__init__(self)
-        ScoreCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+        ScoreCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds, predict_proba=predict_proba)
 
         self.threshold = threshold
         self.tpr, self.fpr = tpr, fpr
@@ -123,10 +123,9 @@ class ThresholdModel(ACModel, ScoreCLFQuantifier):
 # Threshold Selector Base Class
 class ThresholdSelector(ThresholdModel, ABC):
 
-    # TODO: check rates in init
-    def __init__(self, clf, nfolds, precision, get_delta, break_delta):
+    def __init__(self, clf, n_folds, precision, get_delta, break_delta, predict_proba=None):
 
-        ThresholdModel.__init__(self, clf, nfolds)
+        ThresholdModel.__init__(self, clf, n_folds, predict_proba=predict_proba)
         self.precision = precision
         self._get_delta = get_delta
         self._break_delta = break_delta
@@ -136,9 +135,13 @@ class ThresholdSelector(ThresholdModel, ABC):
         self.Y = Y_cts[0]
         Y_cts = Y_cts[1]
 
-        nfolds = min(self.nfolds, min(Y_cts))
-        y_scores = self._cv_score(X, y, nfolds)
-        thresholds = np.unique(np.around(y_scores, decimals=self.precision))
+        n_folds = min(self.n_folds, min(Y_cts))
+        y_scores = self._cv_score(X, y, n_folds)
+
+        if self.precision is None:
+            thresholds = np.unique(y_scores)
+        else:
+            thresholds = np.unique(np.around(y_scores, decimals=self.precision))
 
         # re-sort for faster CM construction
         ind = np.argsort(y_scores)
@@ -199,29 +202,29 @@ class ThresholdSelector(ThresholdModel, ABC):
 
 class BinaryTSMax(ThresholdSelector):
 
-    def __init__(self, clf, nfolds=10, precision=2):
-        ThresholdSelector.__init__(self, clf=clf, nfolds=nfolds, precision=precision, get_delta=_rates_max,
-                                   break_delta=_delta_false)
+    def __init__(self, clf, n_folds=10, precision=2, predict_proba=None):
+        ThresholdSelector.__init__(self, clf=clf, n_folds=n_folds, precision=precision, get_delta=_rates_max,
+                                   break_delta=_delta_false, predict_proba=predict_proba)
 
 
 class BinaryTSX(ThresholdSelector):
 
-    def __init__(self, clf, nfolds, precision):
-        ThresholdSelector.__init__(self, clf=clf, nfolds=nfolds, precision=precision, get_delta=_rates_x,
-                                   break_delta=_delta0)
+    def __init__(self, clf, n_folds, precision, predict_proba=None):
+        ThresholdSelector.__init__(self, clf=clf, n_folds=n_folds, precision=precision, get_delta=_rates_x,
+                                   break_delta=_delta0, predict_proba=predict_proba)
 
 
 class BinaryTS50(ThresholdSelector):
 
-    def __init__(self, clf, nfolds=10, precision=2):
-        ThresholdSelector.__init__(self, clf=clf, nfolds=nfolds, precision=precision, get_delta=_rates_50,
-                                   break_delta=_delta0)
+    def __init__(self, clf, n_folds=10, precision=2, predict_proba=None):
+        ThresholdSelector.__init__(self, clf=clf, n_folds=n_folds, precision=precision, get_delta=_rates_50,
+                                   break_delta=_delta0, predict_proba=predict_proba)
 
 
 class BinaryMS(ScoreCLFQuantifier):
 
-    def __init__(self, clf, nfolds, precision, delta_min):
-        ScoreCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+    def __init__(self, clf, n_folds, precision, delta_min, predict_proba=None):
+        ScoreCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds, predict_proba=predict_proba)
         self.precision = precision
         self.threshold_models = []
         self.delta_min = delta_min
@@ -230,9 +233,9 @@ class BinaryMS(ScoreCLFQuantifier):
 
         self.Y = Y_cts[0]
         Y_cts = Y_cts[1]
-        nfolds = min(self.nfolds, min(Y_cts))
+        n_folds = min(self.n_folds, min(Y_cts))
 
-        y_scores = self._cv_score(X, y, nfolds)
+        y_scores = self._cv_score(X, y, n_folds)
 
         # re-sort for faster CM construction
         ind = np.argsort(y_scores)
@@ -252,7 +255,7 @@ class BinaryMS(ScoreCLFQuantifier):
         n_fp = np.sum((y == self.Y[0]) & (y_pred == self.Y[1]))
         tpr, fpr = n_tp / Y_cts[1], n_fp / Y_cts[0]
 
-        self.threshold_models.append((ThresholdModel(self.clf, self.nfolds, tpr=tpr, fpr=fpr, threshold=t)))
+        self.threshold_models.append((ThresholdModel(self.clf, self.n_folds, tpr=tpr, fpr=fpr, threshold=t)))
 
         ir = 0
         while ir < n and y_scores[ir] < t:
@@ -277,7 +280,7 @@ class BinaryMS(ScoreCLFQuantifier):
             n_fp -= d - del_tp
             tpr, fpr = n_tp / Y_cts[1], n_fp / Y_cts[0]
 
-            self.threshold_models.append((ThresholdModel(self.clf, self.nfolds, tpr=tpr, fpr=fpr, threshold=t)))
+            self.threshold_models.append((ThresholdModel(self.clf, self.n_folds, tpr=tpr, fpr=fpr, threshold=t)))
 
             il = ir
 
@@ -327,4 +330,4 @@ class BinaryMS(ScoreCLFQuantifier):
 
         p = p[0:i_p]
 
-        return max(0.0, (min(1.0, np.median(p))))
+        return np.clip(np.median(p), 0, 1)

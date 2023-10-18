@@ -1,4 +1,6 @@
 from ._base import *
+from ..tools import rel_target_prevalences
+from sklearn import linear_model
 
 
 class MMIterator(ProbCLFQuantifier, ABC):
@@ -8,7 +10,7 @@ class MMIterator(ProbCLFQuantifier, ABC):
                  eps=1e-06,
                  max_iter=1000):
 
-        ProbCLFQuantifier.__init__(self, clf=clf, nfolds=0)
+        ProbCLFQuantifier.__init__(self, clf=clf, n_folds=0)
         self.Y = None
         self.Y_rates = None
         self.eps = eps

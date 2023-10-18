@@ -1,5 +1,6 @@
-import numpy as np
 from itertools import combinations_with_replacement
+
+from .metrics import *
 
 
 def count_target_prevalences(y, Y=None):

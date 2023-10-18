@@ -22,8 +22,8 @@ NAE <- function(p_true, p_hat){
 }
 
 # Relative Absolute Error
-RAE <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
-  if(b_smooth){
+RAE <- function(p_true, p_hat, eps = 1e-08){
+  if(eps>0.0){
     p_true <- smooth(p_true,eps)
     p_hat <- smooth(p_hat,eps)
   }
@@ -33,8 +33,8 @@ RAE <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
 }
 
 # Normalized Relative Absolute Error
-NRAE <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
-  if(b_smooth){
+NRAE <- function(p_true, p_hat, eps = 1e-08){
+  if(eps>0.0){
     p_true <- smooth(p_true,eps)
     p_hat <- smooth(p_hat,eps)
   }
@@ -45,8 +45,8 @@ NRAE <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
 }
 
 # Kullback-Leibler Divergence
-KLD <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
-  if(b_smooth){
+KLD <- function(p_true, p_hat, eps = 1e-08){
+  if(eps>0){
     p_true <- smooth(p_true,eps)
     p_hat <- smooth(p_hat,eps)
   }
@@ -54,13 +54,8 @@ KLD <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
 }
 
 # Normalized Kullback-Leibler Divergence
-NKLD <- function(p_true, p_hat, eps = 1e-08, b_smooth = TRUE){
-  if(b_smooth){
-    p_true <- smooth(p_true,eps)
-    p_hat <- smooth(p_hat,eps)
-  }
-  
-  ekld <- exp(KLD(p_true, p_hat))
+NKLD <- function(p_true, p_hat, eps = 1e-08){
+  ekld <- exp(KLD(p_true, p_hat, eps))
   return(max(0,2*ekld/(1+ekld) - 1))
 }
 

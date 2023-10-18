@@ -1,5 +1,7 @@
 from ._base import *
-from ..generals import confusion_matrix
+from ..tools import confusion_matrix, rel_target_prevalences
+
+from sklearn import linear_model
 
 
 ########################################################################################################################
@@ -15,8 +17,8 @@ class CLFModel(DMMBase, CLFQuantifier, ABC):
     def _fit(self, X, y, Y_cts):
         self.Y = Y_cts[0]
         Y_cts = Y_cts[1]
-        nfolds = min(self.nfolds, min(Y_cts))
-        y_scores = self._cv_score(X, y, nfolds)
+        n_folds = min(self.n_folds, min(Y_cts))
+        y_scores = self._cv_score(X, y, n_folds)
         self._fit_cm(y, y_scores, Y_cts)
         return self
 
@@ -33,29 +35,24 @@ class CLFModel(DMMBase, CLFQuantifier, ABC):
 
 class BinaryDyS(CLFModel, ScoreCLFQuantifier):
 
-    def __init__(self, clf, distance, nbins, nfolds, solve_cvx):
-        ScoreCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+    def __init__(self, clf, distance, n_bins, n_folds, solve_cvx, predict_proba=None):
+        ScoreCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds, predict_proba=predict_proba)
         DMMBase.__init__(self, dist=distance, solve_cvx=solve_cvx)
         self.score_range = None
-        self.nbins = nbins
+        self.n_bins = n_bins
 
     def _fit_cm(self, y, y_scores, Y_cts):
 
-        if self._clf_type == 'prob':
-            self.score_range = (0, 1)
-        else:
-            self.score_range = (np.min(y_scores), np.max(y_scores))
-
-        self.CM = np.vstack([np.histogram(y_scores[np.where(y == l)[0]], bins=self.nbins, range=self.score_range)[0]
+        self.score_range = (0, 1) if self.predict_proba else (np.min(y_scores), np.max(y_scores))
+        self.CM = np.vstack([np.histogram(y_scores[np.where(y == l)[0]], bins=self.n_bins, range=self.score_range)[0]
                              for l in self.Y]).T / Y_cts
 
     def score(self, X):
-        if self._clf_type == 'prob':
-            y_scores = self.clf.predict_proba(X)[:, -1]
-            yp, _ = np.histogram(y_scores, bins=self.nbins, range=self.score_range)
-        else:
-            y_scores = self.clf.decision_function(X)
-            yp, _ = np.histogram(y_scores, bins=self.nbins, range=self.score_range)
+
+        y_scores = self._clf_score(X)
+        yp, _ = np.histogram(y_scores, bins=self.n_bins, range=self.score_range)
+
+        if not self.predict_proba:
             yp[0] += np.sum(y_scores < self.score_range[0])
             yp[-1] += np.sum(y_scores > self.score_range[1])
 
@@ -74,9 +71,9 @@ class GAC(CLFModel, CrispCLFQuantifier):
 
     def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
                  distance="L2",
-                 nfolds=10,
+                 n_folds=10,
                  solve_cvx=True):
-        CrispCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+        CrispCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds)
         DMMBase.__init__(self, dist=distance, solve_cvx=solve_cvx)
 
     def _fit_cm(self, y, y_scores, Y_cts):
@@ -97,10 +94,10 @@ class GPAC(CLFModel, ProbCLFQuantifier):
     def __init__(self,
                  clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
                  distance="L2",
-                 nfolds=10,
+                 n_folds=10,
                  solve_cvx=True):
 
-        ProbCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+        ProbCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds)
         DMMBase.__init__(self, dist=distance, solve_cvx=solve_cvx)
 
     def _fit_cm(self, y, y_scores, Y_cts):
@@ -123,10 +120,10 @@ class FM(CLFModel, ProbCLFQuantifier):
     def __init__(self,
                  clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
                  distance="L2",
-                 nfolds=10,
+                 n_folds=10,
                  solve_cvx=True):
 
-        ProbCLFQuantifier.__init__(self, clf=clf, nfolds=nfolds)
+        ProbCLFQuantifier.__init__(self, clf=clf, n_folds=n_folds)
         DMMBase.__init__(self, dist=distance, solve_cvx=solve_cvx)
 
         self.y_prevs = None
@@ -154,5 +151,5 @@ class HDy(GAC):
 
     def __init__(self,
                  clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto'),
-                 nfolds=10):
-        GAC.__init__(self, clf=clf, distance="HD", nfolds=nfolds, solve_cvx=True)
+                 n_folds=10):
+        GAC.__init__(self, clf=clf, distance="HD", n_folds=n_folds, solve_cvx=True)

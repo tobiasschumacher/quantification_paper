@@ -133,7 +133,12 @@ class DMMBase(Quantifier, ABC):
                 if p is None:
                     warnings.warn("Empty result in convex optimization, used gs search instead")
                     return self.gs_search(yp)
-                return np.array(p).squeeze()
+
+                # clip to interval (0,1= - by the given constraints, this should already be the case anyways, but in
+                # rare cases, it may occur that we are marginally outside this interval, probably due to tolerance of
+                # cvxpy regarding what is qpproximately equal
+                return np.clip(np.array(p).squeeze(), 0, 1)
+
             except cvx.SolverError:
                 warnings.warn("SolverError in cvxpy, used gs search instead")
                 return self.gs_search(yp)

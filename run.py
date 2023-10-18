@@ -1,58 +1,8 @@
 import argparse
-import numpy as np
-import pandas as pd
 import helpers
 from time import localtime, strftime
-import QFY
 
-# ==============================================================================
-# Global Variables
-# ==============================================================================
-
-res_path = "results/raw/"
-
-# global data set index
-data_set_index = pd.read_csv("data/data_index.csv",
-                             sep=";",
-                             index_col="dataset")
-
-# global algorithm index
-algorithm_index = pd.read_csv("alg_index.csv",
-                              sep=";",
-                              index_col="algorithm")
-
-algorithm_index = algorithm_index.loc[algorithm_index.export == 1]
-algorithms = list(algorithm_index.index)
-algorithm_dict = dict({alg: helpers.load_class(algorithm_index.loc[alg, "module_name"],
-                                               algorithm_index.loc[alg, "class_name"])
-                       for alg in algorithms})
-
-global_seeds = [4711, 1337, 42, 90210, 666, 879, 1812, 4055, 711, 512]
-
-# train/test ratios to test against
-train_test_ratios = [[0.1, 0.9], [0.3, 0.7], [0.5, 0.5], [0.7, 0.3]]
-train_test_ratios = [np.array(d) for d in train_test_ratios]
-
-train_distributions = dict()
-train_distributions[2] = np.array([[0.1, 0.9], [0.3, 0.7], [0.5, 0.5], [0.7, 0.3], [0.9, 0.1], [0.95, 0.05]])
-train_distributions[3] = np.array([[0.2, 0.5, 0.3], [0.05, 0.8, 0.15], [0.35, 0.3, 0.35]])
-train_distributions[4] = np.array([[0.5, 0.3, 0.1, 0.1], [0.7, 0.1, 0.1, 0.1], [0.25, 0.25, 0.25, 0.25]])
-train_distributions[5] = np.array([[0.05, 0.2, 0.1, 0.2, 0.45], [0.05, 0.1, 0.7, 0.1, 0.05], [0.2, 0.2, 0.2, 0.2, 0.2]])
-
-test_distributions = dict()
-test_distributions[2] = np.array(
-    [[0.1, 0.9], [0.2, 0.8], [0.3, 0.7], [0.4, 0.6], [0.5, 0.5], [0.6, 0.4], [0.7, 0.3], [0.8, 0.2], [0.9, 0.1],
-     [0.95, 0.05], [0.99, 0.01], [1, 0]])
-test_distributions[3] = np.array(
-    [[0.1, 0.7, 0.2], [0.55, 0.1, 0.35], [0.35, 0.55, 0.1], [0.4, 0.25, 0.35], [0., 0.05, 0.95]])
-test_distributions[4] = np.array(
-    [[0.65, 0.25, 0.05, 0.05], [0.2, 0.25, 0.3, 0.25], [0.45, 0.15, 0.2, 0.2], [0.2, 0, 0, 0.8],
-     [0.3, 0.25, 0.35, 0.1]])
-test_distributions[5] = np.array(
-    [[0.15, 0.1, 0.65, 0.1, 0], [0.45, 0.1, 0.3, 0.05, 0.1], [0.2, 0.25, 0.25, 0.1, 0.2], [0.35, 0.05, 0.05, 0.05, 0.5],
-     [0.05, 0.25, 0.15, 0.15, 0.4]])
-
-mc_data = data_set_index.loc[data_set_index.loc[:, "classes"] > 2].index
+from config import *
 
 
 def parse_args():
@@ -66,20 +16,31 @@ def parse_args():
     # Test parameters
     parser.add_argument(
         "-a", "--algorithms", nargs="+", type=str,
-        choices=algorithms, default=algorithms,
-        help="Algorithms used in evaluation."
+        choices=QUANTIFIER_LIST, default=DEFAULT_QUANTIFIER_LIST,
+        help="Quantification algorithms used in evaluation. If none are given, all algorithms except quantification "
+             "forests and SVMperf-based quantifiers are used. Forests and SVMperf are not in default, since these "
+             "require additional software. Please consult the readme file of this repository for more details about "
+             "this issue."
     )
     parser.add_argument(
         "-d", "--datasets", nargs="*", type=str,
-        default=None,
+        choices=DATASET_LIST, default=DATASET_LIST,
         help="Datasets used in evaluation."
     )
     parser.add_argument(
-        "--mc", type=bool, default=True,
-        help="Whether or not to run multiclass experiments"
+        "--modes", type=str, nargs="+", choices=MAIN_EXPERIMENT_MODES, default=MAIN_EXPERIMENT_MODES,
+        help="Whether to only run experiments on data with binary target labels."
     )
     parser.add_argument(
-        "--seeds", type=int, nargs="+", default=global_seeds,
+        "--minsize", type=int, nargs="?", default=None,
+        help="Minimum size of datasets to consider."
+    )
+    parser.add_argument(
+        "--maxsize", type=int, nargs="?", default=None,
+        help="Maximum size of datasets to consider."
+    )
+    parser.add_argument(
+        "--seeds", type=int, nargs="+", default=GLOBAL_SEEDS,
         help="Seeds to be used in experiments. By default, all seeds will be used."
     )
     parser.add_argument(
@@ -89,53 +50,57 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_synth(data_sets=None,
-              algs=None,
-              dt_index=None,
-              b_mc=False,
-              seeds=global_seeds):
-    if data_sets is None:
-        df_ind = data_set_index
-    else:
-        df_ind = data_set_index.loc[data_sets]
+def run_synth(datasets,
+              quantifiers,
+              dt_index,
+              modes,
+              seeds,
+              minsize,
+              maxsize):
+
+    df_ind = DATASET_INDEX.loc[datasets]
 
     if dt_index is None:
-        dt_ratios = train_test_ratios
+        dt_ratios = TRAIN_TEST_RATIOS
     else:
-        dt_ratios = [train_test_ratios[i] for i in dt_index]
+        dt_ratios = [TRAIN_TEST_RATIOS[i] for i in dt_index]
 
-    if not b_mc:
+    if "multiclass" not in modes:
         df_ind = df_ind.loc[df_ind["classes"] == 2]
-        data_sets = list(df_ind.index)
-    else:
-        data_sets = list(df_ind.index)
+    elif "binary" not in modes:
+        df_ind = df_ind.loc[df_ind["classes"] > 2]
 
-    if algs is None:
-        alg_ind = algorithm_index
-    else:
-        alg_ind = algorithm_index.loc[algs]
+    if minsize is not None:
+        df_ind = df_ind.loc[df_ind["size"] >= minsize]
 
-    mc_algs = list(alg_ind["multiclass"] > 0)
-    mc_algs = list(alg_ind.loc[mc_algs].index)
+    if maxsize is not None:
+        df_ind = df_ind.loc[df_ind["size"] <= maxsize]
 
-    dc_algs = list(alg_ind["continuous"] == 0)
-    dc_algs = list(alg_ind.loc[dc_algs].index)
+    datasets = list(df_ind.index)
 
-    cont_algs = list(alg_ind["continuous"] == 1)
-    cont_algs = list(alg_ind.loc[cont_algs].index)
+    quantifier_index = QUANTIFIER_INDEX.loc[quantifiers]
 
-    mcc_algs = list(set(mc_algs).intersection(cont_algs))
+    mc_quantifiers = list(quantifier_index["multiclass"] != "No")
+    mc_quantifiers = list(quantifier_index.loc[mc_quantifiers].index)
 
-    mcd_algs = list(set(mc_algs).intersection(dc_algs))
+    dc_quantifiers = list(quantifier_index["continuous"] == 0)
+    dc_quantifiers = list(quantifier_index.loc[dc_quantifiers].index)
 
-    for dta_name in data_sets:
+    cont_quantifiers = list(quantifier_index["continuous"] == 1)
+    cont_quantifiers = list(quantifier_index.loc[cont_quantifiers].index)
+
+    mcc_quantifiers = list(set(mc_quantifiers).intersection(cont_quantifiers))
+
+    mcd_quantifiers = list(set(mc_quantifiers).intersection(dc_quantifiers))
+
+    for dta_name in datasets:
 
         n_classes = df_ind.loc[dta_name, "classes"]
 
         # build training and test class distributions
-        train_ds = train_distributions[n_classes]
+        train_ds = TRAINING_DISTRIBUTIONS[n_classes]
 
-        test_ds = test_distributions[n_classes]
+        test_ds = TEST_DISTRIBUTIONS[n_classes]
 
         for seed in seeds:
 
@@ -143,40 +108,40 @@ def run_synth(data_sets=None,
             is_multiclass = n_classes > 2
 
             if is_multiclass:
-                data_synth_experiments(dta_name, binned=True, algs=mcd_algs, dt_ratios=dt_ratios, train_ds=train_ds,
-                                       test_ds=test_ds, seed=seed)
+                data_synth_experiments(dta_name, binned=True, quantifiers=mcd_quantifiers, dt_ratios=dt_ratios,
+                                       train_ds=train_ds, test_ds=test_ds, seed=seed)
             else:
-                data_synth_experiments(dta_name, binned=True, algs=dc_algs, dt_ratios=dt_ratios, train_ds=train_ds,
-                                       test_ds=test_ds, seed=seed)
+                data_synth_experiments(dta_name, binned=True, quantifiers=dc_quantifiers, dt_ratios=dt_ratios,
+                                       train_ds=train_ds, test_ds=test_ds, seed=seed)
 
             # ----run on unbinned data -----------------------
 
             if is_multiclass:
-                data_synth_experiments(dta_name, binned=False, algs=mcc_algs, dt_ratios=dt_ratios, train_ds=train_ds,
-                                       test_ds=test_ds, seed=seed)
+                data_synth_experiments(dta_name, binned=False, quantifiers=mcc_quantifiers, dt_ratios=dt_ratios,
+                                       train_ds=train_ds, test_ds=test_ds, seed=seed)
             else:
-                data_synth_experiments(dta_name, binned=False, algs=cont_algs, dt_ratios=dt_ratios, train_ds=train_ds,
-                                       test_ds=test_ds, seed=seed)
+                data_synth_experiments(dta_name, binned=False, quantifiers=cont_quantifiers, dt_ratios=dt_ratios,
+                                       train_ds=train_ds, test_ds=test_ds, seed=seed)
 
 
 def data_synth_experiments(
         dta_name,
         binned,
-        algs,
+        quantifiers,
         dt_ratios,
         train_ds,
         test_ds,
-        seed=4711):
-    if len(algs) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
+        seed):
+    if len(quantifiers) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
         return
 
     print(dta_name)
     X, y, N, Y, n_classes, y_cts, y_idx = helpers.get_xy(dta_name, load_from_disk=True, binned=binned)
 
     n_combs = len(dt_ratios) * len(train_ds) * len(test_ds)
-    n_cols = 5 + 4 * n_classes + n_classes * len(algs)
 
-    stats_matrix = np.zeros((n_combs, n_cols))
+    n_config_cols, col_names = helpers.build_colnames(quantifiers, experiment="main", Y=Y)
+    stats_matrix = np.zeros((n_combs, len(col_names)))
 
     i = 0
 
@@ -192,65 +157,57 @@ def data_synth_experiments(
                 print(dt_distr)
                 print(train_distr)
                 print(test_distr)
-                j = len(stats_vec)
+                j = n_config_cols
                 stats_matrix[i, 0:j] = stats_vec
 
-                for str_alg in algs:
-                    print(str_alg)
+                for str_qf in quantifiers:
+                    print(str_qf)
 
-                    p = run_setup(str_alg, X, y, train_index, test_index)
+                    init_args = QUANTIFIER_DEFAULT_PARAMETER_DICT[str_qf]
+
+                    if str_qf in SVMPERF_QUANTIFIER_LIST:
+                        if len(train_index) > 10000:
+                            init_args["C"] = 0.1
+                    elif str_qf == "QF":
+                        init_args["id_str"] = dta_name + '_' + str(seed)
+                        init_args["seed"] = seed
+                        
+                    p = run_setup(str_qf, X[train_index], y[train_index], X[test_index], init_args)
 
                     print(p)
 
-                    stats_matrix[i, j:(j + n_classes)] = p
+                    stats_matrix[i, j:(j + len(p))] = p
 
-                    j += n_classes
+                    j += len(p)
 
                 i += 1
 
-    col_names = ["Total_Samples_Used", "Training_Size", "Test_Size", "Training_Ratio", "Test_Ratio"]
-    col_names += ["Training_Class_" + str(l) + "_Absolute" for l in Y]
-    col_names += ["Training_Class_" + str(l) + "_Relative" for l in Y]
-    col_names += ["Test_Class_" + str(l) + "_Absolute" for l in Y]
-    col_names += ["Test_Class_" + str(l) + "_Relative" for l in Y]
+    stats_data = pd.DataFrame(data=stats_matrix, columns=col_names)
 
-    for alg in algs:
-        for li in Y:
-            col_names += [alg + "_Prediction_Class_" + str(li)]
-
-    stats_data = pd.DataFrame(data=stats_matrix,
-                              columns=col_names)
-
-    fname = res_path + dta_name + "_seed_" + str(seed) + "_" + strftime("%Y-%m-%d_%H-%M-%S", localtime()) + ".csv"
+    fname = f"{RAW_RESULT_FILES_PATH}{dta_name}_seed_{seed}_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
     stats_data.to_csv(fname, index=False, sep=';')
 
 
-def run_setup(str_alg,
-              X,
-              y,
-              train_idx,
-              test_idx,
-              init_args=None,
-              fit_args=None,
-              pred_args=None):
-    X_train, y_train = X[train_idx], y[train_idx]
-    X_test = X[test_idx]
+def run_setup(str_qf,
+              X_train,
+              y_train,
+              X_test,
+              params=None):
 
-    if init_args is None:
-        init_args = []
-    if fit_args is None:
-        fit_args = [X_train, y_train]
-    if pred_args is None:
-        pred_args = [X_test]
+    if params is None:
+        params = {}
 
-    qf = algorithm_dict[str_alg](*init_args)
+    qf = QUANTIFIER_DICT[str_qf](**params)
 
-    qf.fit(*fit_args)
-    p = qf.predict(*pred_args)
+    qf.fit(X_train, y_train)
+    p = qf.predict(X_test)
+
+    if len(params) > 0 and "svmperf_path" in list(params.keys()):
+        qf.cleanup()
 
     return p
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_synth(args.datasets, args.algorithms, args.dt, args.mc, args.seeds)
+    run_synth(args.datasets, args.algorithms, args.dt, args.modes, args.seeds, args.minsize, args.maxsize)

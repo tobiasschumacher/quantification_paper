@@ -1,6 +1,7 @@
-from ..base import CLFQuantifier, ProbCLFQuantifier, rel_target_prevalences
+from ..base import CLFQuantifier, ProbCLFQuantifier
+from ..tools import rel_target_prevalences
 import numpy as np
-from sklearn import linear_model
+from sklearn import linear_model, svm
 
 
 ########################################################################################################################
@@ -9,8 +10,8 @@ from sklearn import linear_model
 
 class CC(CLFQuantifier):
 
-    def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto')):
-        CLFQuantifier.__init__(self, clf=clf, nfolds=0)
+    def __init__(self, clf=svm.SVC()):
+        CLFQuantifier.__init__(self, clf=clf, n_folds=0)
 
     def fit(self, X, y):
         self.Y = np.unique(y)
@@ -25,7 +26,7 @@ class CC(CLFQuantifier):
 class PCC(ProbCLFQuantifier, CC):
 
     def __init__(self, clf=linear_model.LogisticRegression(solver='lbfgs', max_iter=1000, multi_class='auto')):
-        ProbCLFQuantifier.__init__(self, clf=clf, nfolds=0)
+        ProbCLFQuantifier.__init__(self, clf=clf, n_folds=0)
 
     def predict(self, X):
         yp = self.clf.predict_proba(X)

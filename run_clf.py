@@ -1,32 +1,10 @@
-import numpy as np
-import pandas as pd
-
 import os
 import argparse
-import helpers
 from time import localtime, strftime
 
-from sklearn.model_selection import GridSearchCV
-from sklearn.svm import SVC
-from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-
-from run import train_test_ratios, train_distributions, test_distributions, global_seeds, \
-    algorithm_dict, algorithm_index
-from tune_clfs import clf_index
-from run import data_set_index
-
-# ==============================================================================
-# Global Variables
-# ==============================================================================
-
-clf_path = "results/raw/clf/"
-res_path = "results/raw/"
-alg_index = algorithm_index.loc[algorithm_index.clf == 1]
-
-rate_algs = ["CC", "AC", "GAC", "HDy"]
-svc_algs = ["TSX", "TS50", "TSMax", "MS", "FormanMM", "DyS"]
-prob_algs = ["PCC", "PAC", "GPAC", "FM", "EM", "CDE"]
+import helpers
+from run import run_setup
+from config import *
 
 
 def parse_args():
@@ -40,20 +18,25 @@ def parse_args():
     # Test parameters
     parser.add_argument(
         "-a", "--algorithms", nargs="+", type=str,
-        choices=list(alg_index.index), default=None,
-        help="Algorithms used in evaluation."
+        choices=CLF_QUANTIFIER_LIST, default=CLF_QUANTIFIER_LIST,
+        help="quantifiers to used in experiments."
+    )
+    parser.add_argument(
+        "-clfs", "--classifiers", nargs="+", type=str,
+        choices=TUNABLE_CLASSIFIER_LIST, default=TUNABLE_CLASSIFIER_LIST,
+        help="base classifiers to use in experiments."
     )
     parser.add_argument(
         "-d", "--datasets", nargs="*", type=str,
-        default=None,
+        choices=DATASET_LIST, default=CLF_DATASET_LIST,
         help="Datasets used in evaluation."
     )
     parser.add_argument(
-        "--mc", type=bool, default=True,
-        help="Whether or not to run multiclass experiments"
+        "--modes", type=str, nargs="+", choices=MAIN_EXPERIMENT_MODES, default=MAIN_EXPERIMENT_MODES,
+        help="Whether to only run experiments on data with binary target labels."
     )
     parser.add_argument(
-        "--seeds", type=int, nargs="+", default=global_seeds,
+        "--seeds", type=int, nargs="+", default=GLOBAL_SEEDS,
         help="Seeds to be used in experiments. By default, all seeds will be used."
     )
     parser.add_argument(
@@ -71,17 +54,18 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_clfs(data_sets=None,
-             algs=None,
-             dt_index=None,
-             b_mc=False,
-             seeds=global_seeds,
-             minsize=None,
-             maxsize=None):
-    if data_sets is None:
-        df_ind = data_set_index
+def run_with_tuned_classifiers(datasets,
+                               quantifiers,
+                               classifiers,
+                               dt_index,
+                               modes,
+                               seeds,
+                               minsize,
+                               maxsize):
+    if len(datasets) == 1 and datasets[0].isnumeric():
+        df_ind = DATASET_INDEX.iloc[int(datasets[0]):]
     else:
-        df_ind = data_set_index.loc[data_sets]
+        df_ind = DATASET_INDEX.loc[datasets]
 
     if minsize is not None:
         df_ind = df_ind.loc[df_ind["size"] >= minsize]
@@ -89,73 +73,107 @@ def run_clfs(data_sets=None,
     if maxsize is not None:
         df_ind = df_ind.loc[df_ind["size"] <= maxsize]
 
-    if algs is None:
-        alg_ind = alg_index
-    else:
-        alg_ind = alg_index.loc[algs]
+    quantifier_index = QUANTIFIER_INDEX.loc[quantifiers]
 
     if dt_index is None:
-        dt_ratios = train_test_ratios
+        dt_ratios = TRAIN_TEST_RATIOS
     else:
-        dt_ratios = [train_test_ratios[i] for i in dt_index]
+        dt_ratios = [TRAIN_TEST_RATIOS[i] for i in dt_index]
 
-    if not b_mc:
+    if "multiclass" not in modes:
         df_ind = df_ind.loc[df_ind["classes"] == 2]
-        data_sets = list(df_ind.index)
+        datasets = list(df_ind.index)
+    elif "binary" not in modes:
+        df_ind = df_ind.loc[df_ind["classes"] > 2]
+        datasets = list(df_ind.index)
     else:
-        data_sets = list(df_ind.index)
+        datasets = list(df_ind.index)
 
-    for dta_name in data_sets:
+    print(datasets)
+
+    for dta_name in datasets:
 
         n_classes = df_ind.loc[dta_name, "classes"]
 
-        if n_classes > 2:
-            algs_passed = list(alg_ind.loc[alg_ind.multiclass > 0].index)
-        else:
-            algs_passed = list(alg_ind.index)
-
-
         # build training and test class distributions
-        train_ds = train_distributions[n_classes]
+        train_ds = TRAINING_DISTRIBUTIONS[n_classes]
 
-        test_ds = test_distributions[n_classes]
+        test_ds = TEST_DISTRIBUTIONS[n_classes]
 
-        for seed in seeds:
-            # ---- only unbinned data necessary here -----------------------
+        if n_classes == 2:
+            quantifier_list = list(quantifier_index.index)
+            for seed in seeds:
 
-            tuned_clf_experiments(dta_name,
-                                  algs=algs_passed,
-                                  dt_ratios=dt_ratios,
-                                  train_ds=train_ds,
-                                  test_ds=test_ds,
-                                  seed=seed)
+                tuned_clf_experiments(dta_name,
+                                      quantifiers=quantifier_list,
+                                      classifiers=classifiers,
+                                      dt_ratios=dt_ratios,
+                                      train_ds=train_ds,
+                                      test_ds=test_ds,
+                                      seed=seed)
+
+        else:
+            # in multiclass setting we need to distinguish between ovr and natural multiclass quantifiers,
+            # since the base classifiers have different optimization strategies
+
+            ovr_quantifier_list = list(quantifier_index.loc[quantifier_index.multiclass == "OVR"].index)
+            mc_quantifier_list = list(quantifier_index.loc[quantifier_index.multiclass == "Yes"].index)
+
+            for seed in seeds:
+
+                tuned_clf_experiments(dta_name,
+                                      quantifiers=mc_quantifier_list,
+                                      classifiers=classifiers,
+                                      dt_ratios=dt_ratios,
+                                      train_ds=train_ds,
+                                      test_ds=test_ds,
+                                      seed=seed,
+                                      mode="multiclass")
+
+                tuned_clf_experiments(dta_name,
+                                      quantifiers=ovr_quantifier_list,
+                                      classifiers=classifiers,
+                                      dt_ratios=dt_ratios,
+                                      train_ds=train_ds,
+                                      test_ds=test_ds,
+                                      seed=seed,
+                                      mode="ovr")
+
+
+def get_qf_params(str_qf, str_clf):
+    params = QUANTIFIER_DEFAULT_PARAMETER_DICT[str_qf]
+    if str_clf == "SV" and str_qf in CLF_DECISION_SCORE_QUANTIFIERS:
+        params["predict_proba"] = False
+
+    return params
 
 
 def tuned_clf_experiments(
         dta_name,
-        algs,
+        quantifiers,
+        classifiers,
         dt_ratios,
         train_ds,
         test_ds,
-        seed=4711):
-    if len(algs) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
+        seed,
+        mode="binary"):
+
+    if len(quantifiers) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
         return
 
     print(dta_name)
     X, y, N, Y, n_classes, y_cts, y_idx = helpers.get_xy(dta_name, load_from_disk=True, binned=False)
 
     n_combs = len(dt_ratios) * len(train_ds) * len(test_ds)
-    n_cols = 5 + 4 * n_classes + n_classes*(len(set(algs).intersection(set(prob_algs)))
-                                            + 2*len(set(algs).intersection(set(svc_algs)))
-                                            + 4*len(set(algs).intersection(set(rate_algs))))
 
-    clf_fprefix = "clfs_" + dta_name + "_seed_" + str(seed)
-    clf_file = [f for f in os.listdir(clf_path) if clf_fprefix in f][-1]
+    clf_prefix = f"classifiers_ovr_{dta_name}_seed_{seed}" if mode == "ovr" else f"classifiers_{dta_name}_seed_{seed}"
 
-    clf_matrix = pd.read_csv(clf_path + clf_file, sep=";")
-    #acc_cols = [str_clf + "_Best_Accuracy" for str_clf in clf_index.keys()]
+    clf_file = [f for f in os.listdir(CLASSIFIER_TUNING_RESULTS_PATH) if clf_prefix in f][-1]
 
-    stats_matrix = np.zeros((n_combs, n_cols))
+    clf_matrix = pd.read_csv(CLASSIFIER_TUNING_RESULTS_PATH + clf_file, sep=";")
+
+    n_config_cols, col_names = helpers.build_colnames(quantifiers, classifiers=classifiers, experiment="tuned_clf", Y=Y)
+    stats_matrix = np.zeros((n_combs, len(col_names)))
 
     i = 0
 
@@ -171,84 +189,51 @@ def tuned_clf_experiments(
                 print(dt_distr)
                 print(train_distr)
                 print(test_distr)
-                j = len(stats_vec)
+                j = n_config_cols
                 stats_matrix[i, 0:j] = stats_vec
 
                 clf_vec = clf_matrix.iloc[i]
 
-                for str_alg in algs:
-                    print(str_alg)
-                    if str_alg in svc_algs:
-                        clf_list = ["lr", "svc"]
-                    elif str_alg in prob_algs:
-                        clf_list = ["lr"]
-                    else:
-                        clf_list = list(clf_index.keys())
+                for str_qf in quantifiers:
+                    print(str_qf)
+
+                    clf_list = BASE_CLASSIFIER_DICT[str_qf]
+
+                    clf_list = [clf_str for clf_str in clf_list if clf_str in classifiers]
 
                     for str_clf in clf_list:
                         print(str_clf)
-                        clf_params = {par: clf_vec.loc[str_clf + "_Best_Param_" + par] for par in
-                                      clf_index[str_clf]["params"].keys()}
-                        if str_clf == "rf":
-                            clf_params = {k: int(v) for k,v in clf_params.items()}
-                        clf = clf_index[str_clf]['clf']
+                        clf_params = {par: clf_vec.loc[str_clf + "_Best_Param_" + par]
+                                      for par in TUNABLE_CLASSIFIER_DICT[str_clf]["params"].keys()
+                                      }
+
+                        for par in clf_params.keys():
+                            if clf_params[par] != clf_params[par]:  # hack to check for NaN in a type agnostic way
+                                clf_params[par] = None
+
+                        if str_clf == "RF":
+                            clf_params = {k: int(v) for k, v in clf_params.items()}
+                        clf = TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_CLF_KEY]
                         clf.set_params(**clf_params)
 
-                        p = run_clf_setup(str_alg, X, y, train_index, test_index, clf)
-                        print(p)
-                        stats_matrix[i, j:(j + n_classes)] = p
+                        qf_params = get_qf_params(str_qf, str_clf)
+                        qf_params["clf"] = clf
 
-                        j += n_classes
+                        p = run_setup(str_qf, X[train_index], y[train_index], X[test_index], qf_params)
+                        print(p)
+                        stats_matrix[i, j:(j + len(p))] = p
+
+                        j += len(p)
 
                 i += 1
 
-    col_names = ["Total_Samples_Used", "Training_Size", "Test_Size", "Training_Ratio", "Test_Ratio"]
-    col_names += ["Training_Class_" + str(l) + "_Absolute" for l in Y]
-    col_names += ["Training_Class_" + str(l) + "_Relative" for l in Y]
-    col_names += ["Test_Class_" + str(l) + "_Absolute" for l in Y]
-    col_names += ["Test_Class_" + str(l) + "_Relative" for l in Y]
+    stats_data = pd.DataFrame(data=stats_matrix, columns=col_names)
 
-    for str_alg in algs:
-        if str_alg in svc_algs:
-            clf_list = ["lr", "svc"]
-            for str_clf in clf_list:
-                for li in Y:
-                    col_names += [str_alg + "_" + str_clf + "_Prediction_Class_" + str(li)]
-        elif str_alg in prob_algs:
-            clf_list = ["lr"]
-            for str_clf in clf_list:
-                for li in Y:
-                    col_names += [str_alg + "_" + str_clf + "_Prediction_Class_" + str(li)]
-        else:
-            clf_list = list(clf_index.keys())
-            for str_clf in clf_list:
-                for li in Y:
-                    col_names += [str_alg + "_" + str_clf + "_Prediction_Class_" + str(li)]
-
-    stats_data = pd.DataFrame(data=stats_matrix,
-                              columns=col_names)
-
-    fname = res_path + dta_name + "_seed_" + str(seed) + "_" + strftime("%Y-%m-%d_%H-%M-%S", localtime()) + ".csv"
+    fname = f"{RAW_RESULT_FILES_PATH}{dta_name}_seed_{seed}_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
     stats_data.to_csv(fname, index=False, sep=';')
-
-
-def run_clf_setup(str_alg,
-                  X,
-                  y,
-                  train_idx,
-                  test_idx,
-                  clf):
-    X_train, y_train = X[train_idx], y[train_idx]
-    X_test = X[test_idx]
-
-    qf = algorithm_dict[str_alg](clf=clf)
-
-    qf.fit(X_train, y_train)
-    p = qf.predict(X_test)
-
-    return p
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_clfs(args.datasets, args.algorithms, args.dt, args.mc, args.seeds, args.minsize, args.maxsize)
+    run_with_tuned_classifiers(args.datasets, args.algorithms, args.classifiers, args.dt, args.modes, args.seeds,
+                               args.minsize, args.maxsize)

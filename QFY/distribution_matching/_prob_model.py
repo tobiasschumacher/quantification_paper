@@ -78,5 +78,5 @@ class ED:
             problem = cvx.Problem(cvx.Minimize(cvx.quad_form(P, self.B) - 2 * P.T @ t), constraints)
             problem.solve()
 
-            P = np.array(P.value).squeeze()
+            P = np.clip(np.array(P.value).squeeze(), 0, 1)
             return np.append(P, 1.0 - sum(P))

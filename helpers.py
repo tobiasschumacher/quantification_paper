@@ -1,33 +1,28 @@
-import sys
-import importlib.util
+from importlib.util import spec_from_file_location, module_from_spec
 import warnings
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import MaxAbsScaler
 from random import sample
 import math
 
-# global data set index
-data_set_index = pd.read_csv("data/data_index.csv",
-                             sep=";",
-                             index_col="dataset")
+from sklearn.preprocessing import MaxAbsScaler
+
+from config import *
 
 
 def get_data(dta_name, load_from_disk, binned=True):
-    path = "data/" + dta_name
+    path = f"{DATA_PATH}{dta_name}"
 
     if load_from_disk:
         if binned:
             try:
-                return pd.read_pickle(path + "/dta_binned.pkl")
+                return pd.read_pickle(f"{path}/{PICKLED_BINNED_DATA_FILE_NAME}")
             except FileNotFoundError:
-                return pd.read_pickle(path + "/dta.pkl")
+                return pd.read_pickle(f"{path}/{PICKLED_DATA_FILE_NAME}")
 
-        return pd.read_pickle(path + "/dta.pkl")
+        return pd.read_pickle(f"{path}/{PICKLED_DATA_FILE_NAME}")
     else:
-        prep_file = path + "/prep.py"
-        spec = importlib.util.spec_from_file_location("prep", prep_file)
-        prep = importlib.util.module_from_spec(spec)
+        prep_file = f"{path}/{DATA_PREP_SCRIPT_NAME}"
+        spec = spec_from_file_location(DATA_PREP_SCRIPT_NAME, prep_file)
+        prep = module_from_spec(spec)
         spec.loader.exec_module(prep)
         if binned:
             return prep.prep_data(binned)
@@ -208,10 +203,69 @@ def synthetic_draw(n_y, n_classes, y_cts, y_idx, dt_distr, train_distr, test_dis
     return train_index, test_index, stats_vec
 
 
+def _get_base_colnames(Y):
+    col_names = RESULT_FILE_CONFIG_COLNAMES + \
+                [f"{RESULT_FILE_COLNAMES_TRAINING_CLASS_PREFIX}{li}{RESULT_FILE_COLNAMES_ABSOLUTE_PREVALENCE_SUFFIX}"
+                 for li in Y]
+    col_names += [f"{RESULT_FILE_COLNAMES_TRAINING_CLASS_PREFIX}{li}{RESULT_FILE_COLNAMES_RELATIVE_PREVALENCE_SUFFIX}"
+                  for li in Y]
+    col_names += [f"{RESULT_FILE_COLNAMES_TEST_CLASS_PREFIX}{li}{RESULT_FILE_COLNAMES_ABSOLUTE_PREVALENCE_SUFFIX}"
+                  for li in Y]
+    col_names += [f"{RESULT_FILE_COLNAMES_TEST_CLASS_PREFIX}{li}{RESULT_FILE_COLNAMES_RELATIVE_PREVALENCE_SUFFIX}"
+                  for li in Y]
+
+    return len(col_names), col_names
+
+
+def build_colnames(quantifiers, experiment, Y, classifiers=None):
+    n_config_cols, col_names = _get_base_colnames(Y)
+
+    for str_qf in quantifiers:
+
+        if experiment == "main":
+
+            if str_qf == "QF":
+                col_names += [f"{QFOREST_COLUMN_NAMES[0]}{RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX}{li}"
+                              for li in Y]
+
+                if len(Y) == 2:
+                    col_names += [f"{QFOREST_COLUMN_NAMES[1]}{RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX}{li}"
+                                  for li in Y]
+            else:
+                for li in Y:
+                    col_names += [f"{str_qf}{RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX}{li}"]
+
+        elif experiment == "tuned_clf":
+            clf_list = BASE_CLASSIFIER_DICT[str_qf]
+
+            clf_list = [clf_str for clf_str in clf_list if clf_str in classifiers]
+            for str_clf in clf_list:
+                for li in Y:
+                    col_names += [f"{str_qf}-{str_clf}{RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX}{li}"]
+
+        else:
+            col_names += [f"{str_qf}-{TUNED_QUANTIFIER_COLUMN_SUFFIX}{RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX}{li}"
+                          for li in Y]
+
+    return n_config_cols, col_names
+
+
+def build_clf_colnames(classifiers, Y):
+    n_config_cols, col_names = _get_base_colnames(Y)
+
+    for str_clf in classifiers:
+        for par in TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_PARAMS_KEY]:
+            col_names += [str_clf + "_Best_Param_" + str(par)]
+
+        col_names += [str_clf + "_Best_Score"]
+
+    return n_config_cols, col_names
+
+
 def get_xy(dta_name, load_from_disk=True, binned=False):
     dta = get_data(dta_name, load_from_disk=load_from_disk, binned=binned)
 
-    target = data_set_index.loc[dta_name, "target"]
+    target = DATASET_INDEX.loc[dta_name, "target"]
 
     X = dta.loc[:, ~dta.columns.isin([target])].values
     # scale X wrt to max value so all values are in interval [-1,1] and better convergence behavior is achieved
@@ -225,12 +279,52 @@ def get_xy(dta_name, load_from_disk=True, binned=False):
     n_classes = len(Y)
     y_cts = y_cts[1]
 
-    y_idx = [np.where(y == l)[0] for l in Y]
+    y_idx = [np.where(y == li)[0] for li in Y]
 
     return X, y, N, Y, n_classes, y_cts, y_idx
 
 
-def load_class(module_name, class_name):
-    m = importlib.import_module(module_name)
-    c = getattr(m, class_name)
-    return c
+########################################################################################################################
+# Helper functions to bin training and test data, when test data is not present at training time
+########################################################################################################################
+
+def bin_train_data(X_train, n_bins, qcut=False):
+    bin_list = []
+    X_binned = np.zeros(X_train.shape)
+
+    if qcut:
+        for j in range(X_train.shape[1]):
+            vals, bins = pd.qcut(X_train[:, j], q=n_bins, labels=False, retbins=True)
+            X_binned[:, j] = vals
+            bin_list.append(bins)
+
+    else:
+        for j in range(X_train.shape[1]):
+            vals, bins = pd.cut(X_train[:, j], bins=n_bins, labels=False, retbins=True)
+            X_binned[:, j] = vals
+            bin_list.append(bins)
+
+    return X_binned, bin_list
+
+
+def bin_test_data(X_test, bin_list):
+    X_test_binned = np.zeros(X_test.shape)
+    for j in range(X_test.shape[1]):
+        X_tmp = pd.cut(X_test[:, j], bin_list[j], labels=False)
+        X_tmp[X_test[:, j] <= bin_list[j][0]] = 0
+        X_tmp[X_test[:, j] >= bin_list[j][-1]] = len(bin_list[j]) - 1
+        X_test_binned[:, j] = X_tmp
+
+    return X_test_binned
+
+
+# Helper Function to melt data for boxenplots
+def melt_plotting_dataframe(df, measure, key_cols=None):
+    res_cols = list(set(col for col in list(df) if f"_{measure}" in col))
+    df_res = df[res_cols] if key_cols is None else df[key_cols + res_cols]
+    col_names = [col.split(f"_{measure}")[0] for col in res_cols]
+    df_res.columns = col_names if key_cols is None else key_cols + col_names
+    df_res = pd.melt(df_res, id_vars=key_cols, value_vars=col_names, var_name="alg")
+
+    return df_res
+
