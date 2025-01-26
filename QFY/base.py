@@ -12,10 +12,9 @@ class Quantifier(ABC):
         # Y: target class labels
         self.Y = None
 
-    #
-    # @abstractmethod
-    # def fit(self, X, y, Y_cts):
-    #     pass
+    @abstractmethod
+    def fit(self, *args, **kwargs):
+        pass
 
     @abstractmethod
     def predict(self, X):

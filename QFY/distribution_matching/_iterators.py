@@ -17,20 +17,16 @@ class MMIterator(ProbCLFQuantifier, ABC):
         self.max_iter = max_iter
 
     def _fit(self, X, y, Y_cts):
-
-        self.Y = Y_cts[0]
-        self.Y_rates = Y_cts[1] * 1.0 / len(y)
-
-        # now fit real classifier
+        self.Y_rates = Y_cts * 1.0 / len(y)
         self.clf.fit(X, y)
-
-    def fit(self, X, y):
-        Y_cts = list(np.unique(y, return_counts=True))
-        self._fit(X, y, Y_cts)
-        return self
 
 
 class EM(MMIterator):
+
+    def fit(self, X, y):
+        self.Y, Y_cts = list(np.unique(y, return_counts=True))
+        self._fit(X, y, Y_cts)
+        return self
 
     def predict(self, X):
 
@@ -53,7 +49,15 @@ class EM(MMIterator):
         return p_new
 
 
-class BinaryCDE(MMIterator):
+class CDE(MMIterator):
+
+    def fit(self, X, y):
+        self.Y, Y_cts = list(np.unique(y, return_counts=True))
+        if len(self.Y) > 2:
+            return ValueError("CDE only works for binary quantification. Multiclass is possible via OVRQuantifier"
+                              "class, but not recommended due to theoretical issues with that approach.")
+        self._fit(X, y, Y_cts)
+        return self
 
     def predict(self, X):
         yp = self._clf_score(X)

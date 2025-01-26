@@ -1,5 +1,6 @@
-from pathlib import Path
+import os
 from importlib import import_module
+from time import localtime, strftime
 
 import numpy as np
 import pandas as pd
@@ -25,33 +26,42 @@ def load_class(module_name, class_name):
 # Set up variables for paths and initialize them
 # ==============================================================================
 
-DATA_PATH = "data/"
 
-RESULTS_PATH = "results/"
-Path(RESULTS_PATH).mkdir(parents=True, exist_ok=True)
+MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-RAW_RESULT_FILES_PATH = f"{RESULTS_PATH}raw/"
-Path(RAW_RESULT_FILES_PATH).mkdir(parents=True, exist_ok=True)
+DATA_PATH = os.path.join(MAIN_DIR, "data")
 
-CLASSIFIER_TUNING_RESULTS_PATH = f"{RAW_RESULT_FILES_PATH}clf/"
-Path(CLASSIFIER_TUNING_RESULTS_PATH).mkdir(parents=True, exist_ok=True)
+RESULTS_PATH = os.path.join(MAIN_DIR, "results")
+if not os.path.isdir(RESULTS_PATH):
+    os.mkdir(RESULTS_PATH)
 
-SVMPERF_PATH = 'svm_perf/'
+RAW_RESULT_FILES_PATH = os.path.join(RESULTS_PATH, "raw")
+if not os.path.isdir(RAW_RESULT_FILES_PATH):
+    os.mkdir(RAW_RESULT_FILES_PATH)
 
-QFOREST_PATH = "qforest/"
-QFOREST_COLUMN_NAMES = ["QF", "QF-AC"]
+CLASSIFIER_TUNING_RESULTS_PATH = os.path.join(RAW_RESULT_FILES_PATH, "clf")
+if not os.path.isdir(CLASSIFIER_TUNING_RESULTS_PATH):
+    os.mkdir(CLASSIFIER_TUNING_RESULTS_PATH)
 
-PREPROCESSED_RESULTS_PATH = f"{RESULTS_PATH}preprocessed/"
-Path(PREPROCESSED_RESULTS_PATH).mkdir(parents=True, exist_ok=True)
+PREPROCESSED_RESULTS_PATH = os.path.join(RESULTS_PATH, "preprocessed")
+if not os.path.isdir(PREPROCESSED_RESULTS_PATH):
+    os.mkdir(PREPROCESSED_RESULTS_PATH)
 
-RESULT_TABLES_PATH = f"{RESULTS_PATH}tables/"
-Path(RESULT_TABLES_PATH).mkdir(parents=True, exist_ok=True)
+RESULT_TABLES_PATH = os.path.join(RESULTS_PATH, "tables")
+if not os.path.isdir(RESULT_TABLES_PATH):
+    os.mkdir(RESULT_TABLES_PATH)
 
-RESULT_TABLES_TEX_PATH = f"{RESULTS_PATH}tables/tex/"
-Path(RESULT_TABLES_TEX_PATH).mkdir(parents=True, exist_ok=True)
+RESULT_TABLES_TEX_PATH = os.path.join(RESULT_TABLES_PATH, "tex")
+if not os.path.isdir(RESULT_TABLES_TEX_PATH):
+    os.mkdir(RESULT_TABLES_TEX_PATH)
 
-RESULT_PLOTS_PATH = f"{RESULTS_PATH}plots/"
-Path(RESULT_PLOTS_PATH).mkdir(parents=True, exist_ok=True)
+RESULT_PLOTS_PATH = os.path.join(RESULTS_PATH, "plots")
+if not os.path.isdir(RESULT_PLOTS_PATH):
+    os.mkdir(RESULT_PLOTS_PATH)
+
+SVMPERF_PATH = os.path.join(MAIN_DIR, "svm_perf")
+
+QFOREST_PATH = os.path.join(MAIN_DIR, "qforest")
 
 # ==============================================================================
 # Global Variables for all Experiments
@@ -83,11 +93,15 @@ TEST_DISTRIBUTIONS = dict({
 })
 
 EXPERIMENT_LIST = ["main", "clf", "lequa_main", "lequa_clf", "lequa_opt"]
-MAIN_EXPERIMENT_MODES = ["binary", "multiclass"]
+
+BINARY_MODE_KEY = "binary"
+MULTICLASS_MODE_KEY = "multiclass"
+OVR_MODE_KEY = "ovr"
+MAIN_EXPERIMENT_MODES = [BINARY_MODE_KEY, MULTICLASS_MODE_KEY]
 MAIN_EXPERIMENT_MEASURES = ["AE", "NKLD"]
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Dateset variables
+# Dataset variables
 # ----------------------------------------------------------------------------------------------------------------------
 
 PICKLED_DATA_FILE_NAME = "dta.pkl"
@@ -95,7 +109,7 @@ PICKLED_BINNED_DATA_FILE_NAME = "dta_binned.pkl"
 DATA_PREP_SCRIPT_NAME = "prep.py"
 
 # global data set index
-DATASET_INDEX = pd.read_csv(f"{DATA_PATH}/data_index.csv",
+DATASET_INDEX = pd.read_csv(os.path.join(DATA_PATH, "data_index.csv"),
                             sep=";",
                             index_col="dataset")
 
@@ -116,6 +130,8 @@ QUANTIFIER_DICT = dict({qf: load_class(QUANTIFIER_INDEX.loc[qf, "module_name"],
 # Column names for result tables
 # ----------------------------------------------------------------------------------------------------------------------
 
+RAW_RESULT_FILE_NAME = lambda D, S: f"{D}_seed_{S}_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
+
 RESULT_FILE_CONFIG_COLNAMES = ["Total_Samples_Used", "Training_Size", "Test_Size", "Training_Ratio", "Test_Ratio"]
 RESULT_FILE_COLNAMES_TRAINING_CLASS_PREFIX = "Training_Class_"
 RESULT_FILE_COLNAMES_TEST_CLASS_PREFIX = "Test_Class_"
@@ -125,6 +141,7 @@ RESULT_FILE_COLNAMES_CLASS_PREDICTIONS_INFIX = "_Prediction_Class_"
 
 PROCESSED_RESULTS_KEY_COLUMNS = ['Seed', 'TT_split', 'D_train', 'D_test', 'dataset', 'Drift_MAE']
 
+
 # ==============================================================================
 # Variables for Main Experiments
 # ==============================================================================
@@ -132,6 +149,8 @@ PROCESSED_RESULTS_KEY_COLUMNS = ['Seed', 'TT_split', 'D_train', 'D_test', 'datas
 DEFAULT_QUANTIFIER_LIST = QUANTIFIER_LIST[:-5]  # exclude SVMperf and Qforest quantifiers from default
 
 SVMPERF_QUANTIFIER_LIST = ["SVM-K", "SVM-Q", "RBF-K", "RBF-Q"]
+
+QFOREST_COLUMN_NAMES = ["QF", "QF-AC"]
 
 # default parameters that are shared over multiple quantifiers
 DEFAULT_PARAMS_LOGISTIC_REGRESSOR = LogisticRegression(solver="lbfgs", max_iter=1000, multi_class='auto')
@@ -258,7 +277,7 @@ CLF_PROBABILITY_QUANTIFIERS = list(QUANTIFIER_INDEX.loc[QUANTIFIER_INDEX.clf_typ
 
 N_FOLDS_GRIDSEARCHCV = 5
 
-CLF_TUNING_EXPERIMENT_MODES = MAIN_EXPERIMENT_MODES + ["ovr"]
+CLF_TUNING_EXPERIMENT_MODES = MAIN_EXPERIMENT_MODES + [OVR_MODE_KEY]
 
 # Parameters for classifiers to tune
 SVC_PARAMS = {'C': [2.0 ** i for i in np.arange(-5, 17, step=2)],
@@ -311,62 +330,74 @@ CLF_TUNING_BINARY_METRIC = 'accuracy'
 CLF_TUNING_OVR_METRIC = 'balanced_accuracy'
 CLF_TUNING_MULTICLASS_METRIC = 'accuracy'
 
+CLF_RESULT_FILE_NAME_OVR_INFIX = lambda MODE: "" if MODE != OVR_MODE_KEY else f"_{OVR_MODE_KEY}"
+CLASSIFIER_TUNING_RESULTS_FILE_NAME_PREFIX = \
+    lambda MODE, DTA, S: f"classifiers{CLF_RESULT_FILE_NAME_OVR_INFIX(MODE)}_{DTA}_seed_{S}"
+
+CLASSIFIER_TUNING_RESULTS_FILE_NAME = \
+    lambda MODE, DTA, S: f"{CLASSIFIER_TUNING_RESULTS_FILE_NAME_PREFIX(MODE, DTA, S)}" \
+                         f"_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv "
+
 # ==============================================================================
 # Variables for LeQua Case Study
 # ==============================================================================
 
-LEQUA_DATA_PATH = f"{DATA_PATH}lequa/"
-LEQUA_RESULT_PATH = f"{RESULTS_PATH}lequa/"
-LEQUA_TUNE_PATH = f"{LEQUA_RESULT_PATH}tune/"
-LEQUA_PLOT_PATH = f"{RESULT_PLOTS_PATH}lequa/"
+LEQUA_DATA_PATH = os.path.join(DATA_PATH, "lequa")
 
-Path(LEQUA_RESULT_PATH).mkdir(parents=True, exist_ok=True)
-Path(LEQUA_TUNE_PATH).mkdir(parents=True, exist_ok=True)
-Path(LEQUA_PLOT_PATH).mkdir(parents=True, exist_ok=True)
+LEQUA_RESULT_PATH = os.path.join(RESULTS_PATH, "lequa")
+if not os.path.isdir(LEQUA_RESULT_PATH):
+    os.mkdir(LEQUA_RESULT_PATH)
 
-LEQUA_DATA_DICT_TRAIN_DATA_KEY = "X_train"
-LEQUA_DATA_DICT_TRAIN_LABELS_KEY = "y_train"
-LEQUA_DATA_DICT_VAL_PATH_KEY = "val_path"
-LEQUA_DATA_DICT_VAL_PREVALENCES_KEY = "val_prevs"
-LEQUA_DATA_DICT_TEST_PATH_KEY = "test_path"
-LEQUA_DATA_DICT_TEST_PREVALENCES_KEY = "test_prevs"
+LEQUA_TUNE_PATH = os.path.join(LEQUA_RESULT_PATH, "tune")
+if not os.path.isdir(LEQUA_TUNE_PATH):
+    os.mkdir(LEQUA_TUNE_PATH)
+
+LEQUA_PLOT_PATH = os.path.join(RESULT_PLOTS_PATH, "lequa")
+if not os.path.isdir(LEQUA_PLOT_PATH):
+    os.mkdir(LEQUA_PLOT_PATH)
+
+LEQUA_DATA_DICT_TRAIN_DATA_PATH_KEY = "train_path"
+LEQUA_DATA_DICT_VAL_PREVALENCES_PATH_KEY = "val_prevs_file_path"
+LEQUA_DATA_DICT_VAL_DATA_PATH_KEY = "val_data_path"
+LEQUA_DATA_DICT_TEST_PREVALENCES_PATH_KEY = "test_prevs_file_path"
+LEQUA_DATA_DICT_TEST_DATA_PATH_KEY = "test_data_path"
 LEQUA_DATA_DICT_N_CLASSES_KEY = "n_classes"
 LEQUA_DATA_DICT_SAMPLE_SIZE_KEY = "sample_size"
 
-LEQUA_BINARY_TRAIN_DATA = pd.read_csv(f"{LEQUA_DATA_PATH}T1A/train/training_data.txt")
-LEQUA_BINARY_TRAIN_DICT = {LEQUA_DATA_DICT_TRAIN_DATA_KEY: LEQUA_BINARY_TRAIN_DATA.iloc[:, 1:].to_numpy(),
-                           LEQUA_DATA_DICT_TRAIN_LABELS_KEY: LEQUA_BINARY_TRAIN_DATA.label.to_numpy(),
-                           LEQUA_DATA_DICT_VAL_PATH_KEY: f"{LEQUA_DATA_PATH}T1A/train/dev_samples/",
-                           LEQUA_DATA_DICT_VAL_PREVALENCES_KEY: pd.read_csv(
-                               f"{LEQUA_DATA_PATH}T1A/train/dev_prevalences.txt",
-                               index_col=0),
-                           LEQUA_DATA_DICT_TEST_PATH_KEY: f"{LEQUA_DATA_PATH}T1A/test/test_samples/",
-                           LEQUA_DATA_DICT_TEST_PREVALENCES_KEY: pd.read_csv(
-                               f"{LEQUA_DATA_PATH}T1A/test/test_prevalences.txt", index_col=0),
-                           LEQUA_DATA_DICT_N_CLASSES_KEY: 2,
-                           LEQUA_DATA_DICT_SAMPLE_SIZE_KEY: 250
-                           }
+LEQUA_BINNING_STATS_FILE_NAME = lambda MODE: f"binning_stats_{MODE}.csv"
+LEQUA_CLF_TUNE_STATS_FILE_NAME = lambda STR_CLF, MODE: f"{STR_CLF}_{MODE}.csv"
+LEQUA_CLF_TUNE_OVR_CLASS_STATS_FILE_NAME = lambda STR_CLF, YC: f"{STR_CLF}_ovr_class_{YC}.csv"
+LEQUA_BEST_CLF_FILE_NAME = lambda STR_CLF, MODE: f"{STR_CLF}_{MODE}.joblib"
+LEQUA_VAL_RESULTS_FILE_NAME = lambda KEY, MODE: f"{KEY}_{MODE}_val_stats.csv"
+LEQUA_RESULT_FILE_NAME = lambda KEY, MODE: f"{KEY}_{MODE}.csv"
 
-LEQUA_MULTICLASS_TRAIN_DATA = pd.read_csv("data/lequa/T1B/train/training_data.txt")
-LEQUA_MULTICLASS_TRAIN_DICT = {LEQUA_DATA_DICT_TRAIN_DATA_KEY: LEQUA_MULTICLASS_TRAIN_DATA.iloc[:, 1:].to_numpy(),
-                               LEQUA_DATA_DICT_TRAIN_LABELS_KEY: LEQUA_MULTICLASS_TRAIN_DATA.label.to_numpy(),
-                               LEQUA_DATA_DICT_VAL_PATH_KEY: f"{LEQUA_DATA_PATH}T1B/train/dev_samples/",
-                               LEQUA_DATA_DICT_VAL_PREVALENCES_KEY: pd.read_csv(
-                                   f"{LEQUA_DATA_PATH}T1B/train/dev_prevalences.txt", index_col=0),
-                               LEQUA_DATA_DICT_TEST_PATH_KEY: f"{LEQUA_DATA_PATH}T1B/test/test_samples/",
-                               LEQUA_DATA_DICT_TEST_PREVALENCES_KEY: pd.read_csv(
-                                   f"{LEQUA_DATA_PATH}T1B/test/test_prevalences.txt", index_col=0),
-                               LEQUA_DATA_DICT_N_CLASSES_KEY: 28,
-                               LEQUA_DATA_DICT_SAMPLE_SIZE_KEY: 1000
-                               }
+LEQUA_BINARY_TRAIN_DICT = {
+    LEQUA_DATA_DICT_TRAIN_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1A", "train", "training_data.txt"),
+    LEQUA_DATA_DICT_VAL_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1A", "train", "dev_samples"),
+    LEQUA_DATA_DICT_VAL_PREVALENCES_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1A", "train", "dev_prevalences.txt"),
+    LEQUA_DATA_DICT_TEST_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1A", "test", "test_samples"),
+    LEQUA_DATA_DICT_TEST_PREVALENCES_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1A", "test", "test_prevalences.txt"),
+    LEQUA_DATA_DICT_N_CLASSES_KEY: 2,
+    LEQUA_DATA_DICT_SAMPLE_SIZE_KEY: 250
+}
 
-LEQUA_DATA_DICT = dict({"binary": LEQUA_BINARY_TRAIN_DICT,
-                        "multiclass": LEQUA_MULTICLASS_TRAIN_DICT})
+LEQUA_MULTICLASS_TRAIN_DICT = {
+    LEQUA_DATA_DICT_TRAIN_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1B", "train", "training_data.txt"),
+    LEQUA_DATA_DICT_VAL_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1B", "train", "dev_samples"),
+    LEQUA_DATA_DICT_VAL_PREVALENCES_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1B", "train", "dev_prevalences.txt"),
+    LEQUA_DATA_DICT_TEST_DATA_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1B", "test", "test_samples"),
+    LEQUA_DATA_DICT_TEST_PREVALENCES_PATH_KEY: os.path.join(LEQUA_DATA_PATH, "T1B", "test", "test_prevalences.txt"),
+    LEQUA_DATA_DICT_N_CLASSES_KEY: 28,
+    LEQUA_DATA_DICT_SAMPLE_SIZE_KEY: 1000
+}
+
+LEQUA_DATA_DICT = dict({BINARY_MODE_KEY: LEQUA_BINARY_TRAIN_DICT,
+                        MULTICLASS_MODE_KEY: LEQUA_MULTICLASS_TRAIN_DICT})
 
 LEQUA_EXPERIMENT_IDS = [1, 11, 2, 21, 22, 3]
 LEQUA_MAIN_SEED = GLOBAL_SEEDS[0]
 
-LEQUA_MEASURES = ["AE", "NKLD", "RAE"]
+LEQUA_MEASURES = ["AE", "RAE", "NKLD"]
 
 LEQUA_NUMBER_OF_BINS_CHOICES = [2, 3, 4, 5, 6, 7, 8]
 
@@ -469,7 +500,7 @@ TUNABLE_QUANTIFIER_PARAMETER_GRID_DICT = {
 
 
 # ======================================================================================================================
-# PLOTTING-RELATES VARIABES
+# PLOTTING-RELATES VARIABLES
 # ======================================================================================================================
 
 # ----------------------------------------------------------------------------------------------------------------------

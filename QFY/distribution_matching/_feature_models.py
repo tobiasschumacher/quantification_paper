@@ -22,8 +22,8 @@ class FeatureModel(DMMBase, ABC):
         self.Y = Y_cts[0]
         self.L = len(self.Y)
         Y_cts = Y_cts[1]
-        Y_idx = [np.where(y == l) for l in self.Y]
-        self.D = len(self.Y)
+        Y_idx = [np.where(y == li) for li in self.Y]
+        self.D = X.shape[1]
 
         if self.L < 2:
             raise ValueError("There is only one unique value in target vector y.")

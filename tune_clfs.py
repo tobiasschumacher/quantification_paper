@@ -1,11 +1,9 @@
 import argparse
 
 import helpers
-from time import localtime, strftime
-from multiprocessing import Pool
 
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.model_selection import GridSearchCV
 
 from helpers import build_clf_colnames
 from config import *
@@ -96,10 +94,10 @@ def tune_classifiers(dataset,
     else:
         dt_ratios = [TRAIN_TEST_RATIOS[i] for i in dt_index]
 
-    if "multiclass" not in modes and "ovr" not in modes:
+    if MULTICLASS_MODE_KEY not in modes and OVR_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] == 2]
         datasets = list(df_ind.index)
-    elif "binary" not in modes:
+    elif BINARY_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] > 2]
         datasets = list(df_ind.index)
     else:
@@ -124,31 +122,31 @@ def tune_classifiers(dataset,
                                       train_ds=train_ds,
                                       test_ds=test_ds,
                                       cv_loss=binary_loss,
-                                      mode="binary",
+                                      mode=BINARY_MODE_KEY,
                                       seed=seed,
                                       n_jobs=n_jobs)
 
             else:
 
-                if "multiclass" in modes:
+                if MULTICLASS_MODE_KEY in modes:
                     synth_clf_experiments(dta_name,
                                           classifiers=classifiers,
                                           dt_ratios=dt_ratios,
                                           train_ds=train_ds,
                                           test_ds=test_ds,
                                           cv_loss=multiclass_loss,
-                                          mode="multiclass",
+                                          mode=MULTICLASS_MODE_KEY,
                                           seed=seed,
                                           n_jobs=n_jobs)
 
-                if "ovr" in modes:
+                if OVR_MODE_KEY in modes:
                     synth_clf_experiments(dta_name,
                                           classifiers=classifiers,
                                           dt_ratios=dt_ratios,
                                           train_ds=train_ds,
                                           test_ds=test_ds,
                                           cv_loss=ovr_loss,
-                                          mode="ovr",
+                                          mode=OVR_MODE_KEY,
                                           seed=seed,
                                           n_jobs=n_jobs)
 
@@ -163,14 +161,14 @@ def synth_clf_experiments(
         mode,
         seed,
         n_jobs):
-
     if len(classifiers) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
         return
 
     print(dta_name)
     X, y, N, Y, n_classes, y_cts, y_idx = helpers.get_xy(dta_name, load_from_disk=True, binned=False)
 
-    n_config_cols, col_names = build_clf_colnames(classifiers, Y)
+    # TODO: adjust for colnames builder for single clf per class in ovr case
+    n_config_cols, col_names = build_clf_colnames(classifiers, Y, mode)
 
     n_combs = len(dt_ratios) * len(train_ds) * len(test_ds)
 
@@ -206,41 +204,38 @@ def synth_clf_experiments(
 
                     n_params = len(params)
 
-                    if mode == "ovr":
+                    if mode == OVR_MODE_KEY:
 
-                        params_list = list(ParameterGrid(params))
-                        with Pool(processes=n_jobs) as pool:
-                            cv_scores = pool.starmap(run_ovr_setup,
-                                                     [(str_clf,
-                                                       params,
-                                                       X[train_index],
-                                                       y[train_index],
-                                                       cv_loss,
-                                                       seed) for params in params_list])
+                        lb = LabelBinarizer()
+                        yb = lb.fit_transform(y)
 
-                        best_index = np.argmax(cv_scores)
-                        best_params = params_list[best_index]
+                        for ic in range(len(lb.classes_)):
+                            yl = yb[:, ic]
+                            p = tune_setup(TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_CLF_KEY],
+                                           params, X[train_index], yl[train_index], cv_loss, seed, n_jobs)
 
-                        p = list(best_params.values()) + [cv_scores[best_index]]
+                            stats_matrix.iloc[i, j:(j + n_params + 1)] = p
+
+                            j += n_params + 1
+
                     else:
                         p = tune_setup(TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_CLF_KEY],
                                        params, X[train_index], y[train_index], cv_loss, seed, n_jobs)
 
-                    print(p[-1])
+                        print(p[-1])
 
-                    stats_matrix.iloc[i, j:(j + n_params + 1)] = p
+                        stats_matrix.iloc[i, j:(j + n_params + 1)] = p
 
-                    j += n_params + 1
+                        j += n_params + 1
 
                 i += 1
 
     stats_data = pd.DataFrame(data=stats_matrix,
                               columns=col_names)
 
-    clf_prefix = "classifiers" if mode != "ovr" else "classifiers_ovr"
-    fname = f"{CLASSIFIER_TUNING_RESULTS_PATH}{clf_prefix}_{dta_name}_seed_{seed}_" \
-            f"{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
-    stats_data.to_csv(fname, index=False, sep=';')
+    res_file_path = os.path.join(CLASSIFIER_TUNING_RESULTS_PATH,
+                                 CLASSIFIER_TUNING_RESULTS_FILE_NAME(mode, dta_name, seed))
+    stats_data.to_csv(res_file_path, index=False, sep=';')
 
 
 def grid_search_no_folds(clf, params, cv_loss, X, y):
@@ -271,7 +266,6 @@ def tune_setup(clf,
                cv_loss,
                seed,
                n_jobs):
-
     if n_jobs is None:
         n_jobs = -1
 
@@ -292,60 +286,6 @@ def tune_setup(clf,
     cols = ['param_' + p for p in params] + ['mean_test_score']
 
     return best_config.loc[cols].to_numpy()
-
-
-def run_ovr_setup(str_clf,
-                  params,
-                  X,
-                  y_mc,
-                  cv_loss,
-                  seed):
-    np.random.seed(seed)
-
-    clf = TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_CLF_KEY]
-
-    clf.set_params(**params)
-
-    _, counts = np.unique(y_mc, return_counts=True)
-
-    n_folds = min(min(counts), N_FOLDS_GRIDSEARCHCV)
-
-    lb = LabelBinarizer()
-    yb = lb.fit_transform(y_mc)
-
-    scores = []
-
-    for i in range(len(lb.classes_)):
-
-        y = yb[:, i]
-
-        if n_folds == 1:
-            clf.fit(X, y)
-
-            if cv_loss == "neg_log_loss":
-                y_pred = clf.predict_proba(X)[:, 1]
-            else:
-                y_pred = clf.predict(X)
-        else:
-            y_pred = np.zeros(y.shape)
-
-            skf = StratifiedKFold(n_splits=n_folds)
-            for train_index, val_index in skf.split(X, y):
-                X_train, X_val = X[train_index], X[val_index]
-                y_train = y[train_index]
-                clf.fit(X_train, y_train)
-
-                if cv_loss == "neg_log_loss":
-                    y_pred[val_index] = clf.predict_proba(X_val)[:, 1]
-                else:
-                    y_pred[val_index] = clf.predict(X_val)
-
-        scores.append(CLF_TUNING_METRIC_DICT[cv_loss](y, y_pred))
-
-    if cv_loss == "neg_log_loss":
-        return -np.mean(scores)
-
-    return np.mean(scores)
 
 
 if __name__ == "__main__":

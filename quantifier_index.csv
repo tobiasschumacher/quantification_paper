@@ -11,7 +11,7 @@ DyS;DM;QFY.distribution_matching;DyS;OVR;1;1;score;1
 FMM;DM;QFY.distribution_matching;FormanMM;OVR;1;1;score;1
 readme;DM;QFY.distribution_matching;ReadMe;Yes;0;1;none;1
 HDx;DM;QFY.distribution_matching;HDx;Yes;0;1;none;0
-HDy;DM;QFY.distribution_matching;HDy;Yes;1;1;crisp;1
+HDy;DM;QFY.distribution_matching;HDy;OVR;1;1;score;1
 FM;DM;QFY.distribution_matching;FM;Yes;1;1;prob;1
 ED;DM;QFY.distribution_matching;ED;Yes;1;1;none;0
 EM;DM;QFY.distribution_matching;EM;Yes;1;1;prob;1

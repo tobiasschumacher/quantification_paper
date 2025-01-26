@@ -9,18 +9,18 @@ from config import *
 
 
 def get_data(dta_name, load_from_disk, binned=True):
-    path = f"{DATA_PATH}{dta_name}"
+    path = os.path.join(DATA_PATH, dta_name)
 
     if load_from_disk:
         if binned:
             try:
-                return pd.read_pickle(f"{path}/{PICKLED_BINNED_DATA_FILE_NAME}")
+                return pd.read_pickle(os.path.join(path, PICKLED_BINNED_DATA_FILE_NAME))
             except FileNotFoundError:
-                return pd.read_pickle(f"{path}/{PICKLED_DATA_FILE_NAME}")
+                return pd.read_pickle(os.path.join(path, PICKLED_DATA_FILE_NAME))
 
-        return pd.read_pickle(f"{path}/{PICKLED_DATA_FILE_NAME}")
+        return pd.read_pickle(os.path.join(path, PICKLED_DATA_FILE_NAME))
     else:
-        prep_file = f"{path}/{DATA_PREP_SCRIPT_NAME}"
+        prep_file = os.path.join(path, DATA_PREP_SCRIPT_NAME)
         spec = spec_from_file_location(DATA_PREP_SCRIPT_NAME, prep_file)
         prep = module_from_spec(spec)
         spec.loader.exec_module(prep)
@@ -250,14 +250,41 @@ def build_colnames(quantifiers, experiment, Y, classifiers=None):
     return n_config_cols, col_names
 
 
-def build_clf_colnames(classifiers, Y):
+def get_clf_matrices(mode, dta_name, seed, classifiers):
+    clf_prefix = CLASSIFIER_TUNING_RESULTS_FILE_NAME_PREFIX(mode, dta_name, seed)
+
+    clf_files = sorted([f for f in os.listdir(CLASSIFIER_TUNING_RESULTS_PATH) if clf_prefix in f], reverse=True)
+
+    clf_matrix_dict = dict()
+    for str_clf in classifiers:
+        for clf_file in clf_files:
+            clf_matrix = pd.read_csv(os.path.join(CLASSIFIER_TUNING_RESULTS_PATH, clf_file), sep=";")
+            if any(f"{str_clf}_" in col_name for col_name in list(clf_matrix)):
+                clf_matrix_dict[str_clf] = clf_matrix
+                break
+        if str_clf not in clf_matrix_dict:
+            raise ValueError(f"No tuning results for {str_clf} classifier on {dta_name} dataset for seed {seed} "
+                             f"in {mode} mode have been found")
+
+    return clf_matrix_dict
+
+
+def build_clf_colnames(classifiers, Y, mode):
     n_config_cols, col_names = _get_base_colnames(Y)
 
-    for str_clf in classifiers:
-        for par in TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_PARAMS_KEY]:
-            col_names += [str_clf + "_Best_Param_" + str(par)]
+    if mode == OVR_MODE_KEY:
+        for str_clf in classifiers:
+            for yc in Y:
+                for par in TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_PARAMS_KEY]:
+                    col_names += [f"Class_{yc}_{str_clf}_Best_Param_{str(par)}"]
 
-        col_names += [str_clf + "_Best_Score"]
+                col_names += [f"Class_{yc}_{str_clf}_Best_Score"]
+    else:
+        for str_clf in classifiers:
+            for par in TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_PARAMS_KEY]:
+                col_names += [f"{str_clf}_Best_Param_{str(par)}"]
+
+            col_names += [str_clf + "_Best_Score"]
 
     return n_config_cols, col_names
 
@@ -327,4 +354,3 @@ def melt_plotting_dataframe(df, measure, key_cols=None):
     df_res = pd.melt(df_res, id_vars=key_cols, value_vars=col_names, var_name="alg")
 
     return df_res
-

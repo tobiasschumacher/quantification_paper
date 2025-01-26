@@ -1,7 +1,8 @@
 import argparse
-import helpers
-from time import localtime, strftime
 
+import helpers
+
+from QFY.ovr import OVRQuantifier
 from config import *
 
 
@@ -65,9 +66,9 @@ def run_synth(datasets,
     else:
         dt_ratios = [TRAIN_TEST_RATIOS[i] for i in dt_index]
 
-    if "multiclass" not in modes:
+    if MULTICLASS_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] == 2]
-    elif "binary" not in modes:
+    elif BINARY_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] > 2]
 
     if minsize is not None:
@@ -172,7 +173,7 @@ def data_synth_experiments(
                         init_args["id_str"] = dta_name + '_' + str(seed)
                         init_args["seed"] = seed
                         
-                    p = run_setup(str_qf, X[train_index], y[train_index], X[test_index], init_args)
+                    p = run_setup(str_qf, X[train_index], y[train_index], X[test_index], n_classes, init_args)
 
                     print(p)
 
@@ -184,20 +185,25 @@ def data_synth_experiments(
 
     stats_data = pd.DataFrame(data=stats_matrix, columns=col_names)
 
-    fname = f"{RAW_RESULT_FILES_PATH}{dta_name}_seed_{seed}_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
-    stats_data.to_csv(fname, index=False, sep=';')
+    res_file_path = os.path.join(RAW_RESULT_FILES_PATH, RAW_RESULT_FILE_NAME(dta_name, seed))
+    stats_data.to_csv(res_file_path, index=False, sep=';')
 
 
 def run_setup(str_qf,
               X_train,
               y_train,
               X_test,
-              params=None):
+              n_classes,
+              params=None,
+              clf_param_dict=None):
 
     if params is None:
         params = {}
 
-    qf = QUANTIFIER_DICT[str_qf](**params)
+    if n_classes > 2 and QUANTIFIER_INDEX.loc[str_qf,"multiclass"] == "OVR":
+        qf = OVRQuantifier(qf=QUANTIFIER_DICT[str_qf](**params), clf_param_dict=clf_param_dict)
+    else:
+        qf = QUANTIFIER_DICT[str_qf](**params)
 
     qf.fit(X_train, y_train)
     p = qf.predict(X_test)

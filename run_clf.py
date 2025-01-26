@@ -1,6 +1,4 @@
-import os
 import argparse
-from time import localtime, strftime
 
 import helpers
 from run import run_setup
@@ -80,10 +78,10 @@ def run_with_tuned_classifiers(datasets,
     else:
         dt_ratios = [TRAIN_TEST_RATIOS[i] for i in dt_index]
 
-    if "multiclass" not in modes:
+    if MULTICLASS_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] == 2]
         datasets = list(df_ind.index)
-    elif "binary" not in modes:
+    elif BINARY_MODE_KEY not in modes:
         df_ind = df_ind.loc[df_ind["classes"] > 2]
         datasets = list(df_ind.index)
     else:
@@ -103,7 +101,6 @@ def run_with_tuned_classifiers(datasets,
         if n_classes == 2:
             quantifier_list = list(quantifier_index.index)
             for seed in seeds:
-
                 tuned_clf_experiments(dta_name,
                                       quantifiers=quantifier_list,
                                       classifiers=classifiers,
@@ -120,7 +117,6 @@ def run_with_tuned_classifiers(datasets,
             mc_quantifier_list = list(quantifier_index.loc[quantifier_index.multiclass == "Yes"].index)
 
             for seed in seeds:
-
                 tuned_clf_experiments(dta_name,
                                       quantifiers=mc_quantifier_list,
                                       classifiers=classifiers,
@@ -128,7 +124,7 @@ def run_with_tuned_classifiers(datasets,
                                       train_ds=train_ds,
                                       test_ds=test_ds,
                                       seed=seed,
-                                      mode="multiclass")
+                                      mode=MULTICLASS_MODE_KEY)
 
                 tuned_clf_experiments(dta_name,
                                       quantifiers=ovr_quantifier_list,
@@ -137,7 +133,7 @@ def run_with_tuned_classifiers(datasets,
                                       train_ds=train_ds,
                                       test_ds=test_ds,
                                       seed=seed,
-                                      mode="ovr")
+                                      mode=OVR_MODE_KEY)
 
 
 def get_qf_params(str_qf, str_clf):
@@ -156,8 +152,7 @@ def tuned_clf_experiments(
         train_ds,
         test_ds,
         seed,
-        mode="binary"):
-
+        mode=BINARY_MODE_KEY):
     if len(quantifiers) == 0 or len(dt_ratios) == 0 or len(train_ds) == 0 or len(test_ds) == 0:
         return
 
@@ -166,11 +161,7 @@ def tuned_clf_experiments(
 
     n_combs = len(dt_ratios) * len(train_ds) * len(test_ds)
 
-    clf_prefix = f"classifiers_ovr_{dta_name}_seed_{seed}" if mode == "ovr" else f"classifiers_{dta_name}_seed_{seed}"
-
-    clf_file = [f for f in os.listdir(CLASSIFIER_TUNING_RESULTS_PATH) if clf_prefix in f][-1]
-
-    clf_matrix = pd.read_csv(CLASSIFIER_TUNING_RESULTS_PATH + clf_file, sep=";")
+    clf_matrix_dict = helpers.get_clf_matrices(mode, dta_name, seed, classifiers)
 
     n_config_cols, col_names = helpers.build_colnames(quantifiers, classifiers=classifiers, experiment="tuned_clf", Y=Y)
     stats_matrix = np.zeros((n_combs, len(col_names)))
@@ -192,8 +183,6 @@ def tuned_clf_experiments(
                 j = n_config_cols
                 stats_matrix[i, 0:j] = stats_vec
 
-                clf_vec = clf_matrix.iloc[i]
-
                 for str_qf in quantifiers:
                     print(str_qf)
 
@@ -203,23 +192,52 @@ def tuned_clf_experiments(
 
                     for str_clf in clf_list:
                         print(str_clf)
-                        clf_params = {par: clf_vec.loc[str_clf + "_Best_Param_" + par]
-                                      for par in TUNABLE_CLASSIFIER_DICT[str_clf]["params"].keys()
-                                      }
-
-                        for par in clf_params.keys():
-                            if clf_params[par] != clf_params[par]:  # hack to check for NaN in a type agnostic way
-                                clf_params[par] = None
-
-                        if str_clf == "RF":
-                            clf_params = {k: int(v) for k, v in clf_params.items()}
+                        clf_vec = clf_matrix_dict[str_clf].iloc[i]
                         clf = TUNABLE_CLASSIFIER_DICT[str_clf][TUNABLE_CLASSIFIER_DICT_CLF_KEY]
-                        clf.set_params(**clf_params)
+                        clf_param_dict = None
+                        if mode == OVR_MODE_KEY:
+                            clf_param_dict = dict()
+                            for yc in Y:
+                                curr_params = {
+                                    par: clf_vec.loc[f"Class_{yc}_{str_clf}_Best_Param_{par}"]
+                                    for par in TUNABLE_CLASSIFIER_DICT[str_clf]["params"].keys()
+                                }
+                                for par in curr_params.keys():
+                                    if curr_params[par] != curr_params[par]:
+                                        curr_params[par] = None
 
-                        qf_params = get_qf_params(str_qf, str_clf)
-                        qf_params["clf"] = clf
+                                if str_clf == "RF":
+                                    curr_params = {k: int(v) for k, v in curr_params.items()}
+                                clf_param_dict[yc] = curr_params
 
-                        p = run_setup(str_qf, X[train_index], y[train_index], X[test_index], qf_params)
+                            qf_params = get_qf_params(str_qf, str_clf)
+                            qf_params["clf"] = clf
+                        else:
+
+                            clf_params = {par: clf_vec.loc[f"{str_clf}_Best_Param_{par}"]
+                                          for par in TUNABLE_CLASSIFIER_DICT[str_clf]["params"].keys()
+                                          }
+
+                            for par in clf_params.keys():
+                                if clf_params[par] != clf_params[par]:  # hack to check for NaN in a type agnostic way
+                                    clf_params[par] = None
+
+                            if str_clf == "RF":
+                                clf_params = {k: int(v) for k, v in clf_params.items()}
+                            clf.set_params(**clf_params)
+
+                            qf_params = get_qf_params(str_qf, str_clf)
+                            qf_params["clf"] = clf
+
+                        p = run_setup(
+                            str_qf=str_qf,
+                            X_train=X[train_index],
+                            y_train=y[train_index],
+                            X_test=X[test_index],
+                            n_classes=n_classes,
+                            params=qf_params,
+                            clf_param_dict=clf_param_dict
+                        )
                         print(p)
                         stats_matrix[i, j:(j + len(p))] = p
 
@@ -229,8 +247,8 @@ def tuned_clf_experiments(
 
     stats_data = pd.DataFrame(data=stats_matrix, columns=col_names)
 
-    fname = f"{RAW_RESULT_FILES_PATH}{dta_name}_seed_{seed}_{strftime('%Y-%m-%d_%H-%M-%S', localtime())}.csv"
-    stats_data.to_csv(fname, index=False, sep=';')
+    res_file_path = os.path.join(RAW_RESULT_FILES_PATH, RAW_RESULT_FILE_NAME(dta_name, seed))
+    stats_data.to_csv(res_file_path, index=False, sep=';')
 
 
 if __name__ == "__main__":
