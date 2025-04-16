@@ -1,30 +1,31 @@
-# A Comparitive Evaluation of Quantification Methods
+# A Comparative Evaluation of Quantification Methods
 
-This repository provides the code used in the experiments of our paper
+This repository provides the code used in the experiments of our [paper](http://jmlr.org/papers/v26/21-0241.html). Below we provide a description on how to reproduce our experiments, assuming you have pulled this repository.
 
-*A Comparitive Evaluation of Quantification Methods*  
-*Tobias Schumacher,  Markus Strohmaier, and Florian Lemmerich*
-
-Below we provide a description on how to reproduce our experiments, assuming you have pulled this repository.
-
-In case you use this repository for your research, we would appreciate if you would cite our work:
+In case you use this repository for your research, we would appreciate if you cited our work:
 ```
-@article{schumacher_quantification_2021,
-  title={A comparative evaluation of quantification methods},
-  author={Schumacher, Tobias and Strohmaier, Markus and Lemmerich, Florian},
-  journal={arXiv preprint arXiv:2103.03223},
-  year={2021}
-}
+@article{schumacher_quantification_2025,
+  author  = {Tobias Schumacher and Markus Strohmaier and Florian Lemmerich},
+  title   = {A Comparative Evaluation of Quantification Methods},
+  journal = {Journal of Machine Learning Research},
+  year    = {2025},
+  volume  = {26},
+  number  = {55},
+  pages   = {1--54},
+  url     = {http://jmlr.org/papers/v26/21-0241.html}
 ```
+
+If you have any problem or question regarding the code or our paper, feel free to create an issue or send an email to [tobias.schumacher@uni-mannheim.de](mailto:tobias.schumacher@uni-mannheim.de).
+
 
 ## Experiments
 
-Regarding the structure of this repository, we would like to note that specifically, the ```quantifier_index.csv``` table and the ```config.py``` script are very central for our experiments. The CSV contains a table of all quantifiers that we use in our experiments, along with their key properties that are releveant to our experiments. The config-script contains all global variables that are relevant to specify our experiments. In our code, all global variables are spelled out in CAPS, whereas all other variable used in our experiments are lowercase.
+Regarding the structure of this repository, we would like to note that specifically the ```quantifier_index.csv``` table and the ```config.py``` script are very central to our experiments. The CSV contains a table of all quantifiers that we use in our experiments, along with their key properties that are releveant to our experiments. The config-script contains all global variables that are relevant to specify our experiments. In our code, all global variables are spelled out in CAPS, whereas all other variable used in our experiments are lowercase.
 
 
 #### Environments
 
-All experiments have been run with Python 3.7. An environment including all packages required to run (almost) our code is given in the ```quant.yml``` file in the ```envs```folder - only the ```quapy.ipynb``` notebook requires another environment, which can be installed via ```quapy.yml```. Along with standard  packages such as ```numpy```, ```pandas``` or ```scikit-learn```, the ```cvxpy``` package [(link)](https://www.cvxpy.org/) is of particular importance for many algorithms in our experiments.
+All experiments have been run with Python 3.7. An environment including all packages required to run (almost) our code is given in the ```quant.yml``` file in the ```envs```folder - only the ```quapy.ipynb``` notebook requires another environment, which can be installed via ```quapy.yml```. Along with standard packages such as ```numpy```, ```pandas``` or ```scikit-learn```, the ```cvxpy``` package [(link)](https://www.cvxpy.org/) is of particular importance for many algorithms in our experiments.
 
 
 #### Loading Datasets
@@ -39,7 +40,7 @@ To reproduce our main experiments, except those running quantification forests a
     python3 -m run -a {algorithms} -d {datasets} --seeds {seeds}
 ```
 
-where algorithms and datasets to run on can be specified by their respective names as listed in ```quantifier_index.csv``` and ```data/data_index.csv```. An ```--modes``` argument can be used to specify whether only binary or multiclass experiments should be conducted. When none of the arguments are specified, all experiments will be executed according to the default parameters specified in ```config.py```. These defaults include all datasets and all quantifers, except for the SVMperf-based quantifiers and quantification forests, which require additional code to be run:
+where algorithms and datasets to run on can be specified by their respective names as listed in ```quantifier_index.csv``` and ```data/data_index.csv```. A ```--modes``` argument can be used to specify whether only binary or multiclass experiments should be conducted. When none of the arguments are specified, all experiments will be executed according to the default parameters specified in ```config.py```. These defaults include all datasets and all quantifers, except for the SVMperf-based quantifiers and quantification forests, which require additional code to be run:
 1. To reproduce the experiments on SVM-based quantification, one first needs to download the [SVMperf](https://www.cs.cornell.edu/people/tj/svm_light/svm_perf.html) software by Joachims, and compile it AFTER applying a patch on this code to add quantification-oriented loss functions into the framework, as has been done by Esuli, Moreo and Sebastiani in their [QuaNet](https://github.com/HLT-ISTI/QuaNet) project. The path to the compiled SVMperf code must then be provided to the ```SVMPERF_PATH``` variable in ```config.py```, and then one can safely pass ```SVM-K```, ```SVM-Q```, ```RBF-K```, and ```RBF-Q``` as algorithms to ```run.py```.
 2. To run quantification forests, one requires the jar-files of the [WEKA](https://www.cs.waikato.ac.nz/ml/weka/)-based implementation of [quantification forests](https://ieeexplore.ieee.org/document/6729537) by Letizia Milli et al. We were provided with these files by Ms. Milli upon request.
 
@@ -70,14 +71,14 @@ To reproduce these experiments, it is required to load the datasets from tasks 1
 2. applying quantifiers with tuned base classifiers,
 3. applying quantifiers for which the parameters were tuned on the validation data.
 
-For experiment 1, it is required that the best binning strategy for the _HDx, readme_ and _quantifcation forest_ methods is determined (experiment code 11). For experiment 2, the base classifiers need to be tuned first (experiment codes 21 and 22).
+For experiment 1, it is required that the best binning strategy for the _HDx, readme_ and _quantifcation forest_ methods is determined (experiment ID 11). For experiment 2, the base classifiers need to be tuned first (experiment IDs 21 and 22).
 To perform the corresponding experiments, one needs to run 
 
 ```bash
     python3 -m run_lequa -e {experiment IDs} -a {algorithms} -clfs {classifiers}
 ```
 
-where specifying no argument will, by default, run all experiments in sequence (but will take a while). 
+where specifying no argument will, by default, run all experiments in sequence (which will take a while). 
 
 
 ### Algorithms
@@ -92,11 +93,6 @@ By default, the main scripts ```run.py``` and ```run_clf.py``` will store the re
 The results from the LeQua case study are stored differently, and do not require additional processing.
 
 
-
 ### Plotting the Results
 
 All plots in our paper were generated from the ```plot_results.ipynb``` notebook. It requires that the preprocessing steps discussed above have been conducted beforehand, with the results saved into the corresponding subfolders of the ```results```directory. The resulting plots are stored in ```results/plots/```.
-
-
-
-
