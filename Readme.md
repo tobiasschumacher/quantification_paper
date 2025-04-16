@@ -13,6 +13,7 @@ In case you use this repository for your research, we would appreciate if you ci
   number  = {55},
   pages   = {1--54},
   url     = {http://jmlr.org/papers/v26/21-0241.html}
+}
 ```
 
 If you have any problem or question regarding the code or our paper, feel free to create an issue or send an email to [tobias.schumacher@uni-mannheim.de](mailto:tobias.schumacher@uni-mannheim.de).
@@ -20,7 +21,7 @@ If you have any problem or question regarding the code or our paper, feel free t
 
 ## Experiments
 
-Regarding the structure of this repository, we would like to note that specifically the ```quantifier_index.csv``` table and the ```config.py``` script are very central to our experiments. The CSV contains a table of all quantifiers that we use in our experiments, along with their key properties that are releveant to our experiments. The config-script contains all global variables that are relevant to specify our experiments. In our code, all global variables are spelled out in CAPS, whereas all other variable used in our experiments are lowercase.
+Regarding the structure of this repository, we would like to note that specifically the ```quantifier_index.csv``` table and the ```config.py``` script are very central to our experiments. The CSV contains a table of all quantifiers that we use in our experiments, along with their key properties that are relevant to our experiments. The config-script contains all global variables that are relevant to specify our experiments. In our code, all global variables are spelled out in CAPS, whereas all other variable used in our experiments are lowercase.
 
 
 #### Environments
